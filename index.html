@@ -740,10 +740,11 @@ function calcFitnessHistory(acts){
   while(cur <= today){
     var ds = cur.toISOString().split('T')[0];
     var tss = dailyTSS[ds]||0;
-    // Exponential weighted moving average
+    // TSB = yesterday's CTL - yesterday's ATL (before today's TSS is applied)
+    var tsb = ctl - atl;
+    // Then update CTL and ATL with today's TSS
     ctl = ctl + (tss - ctl) * (1/42);
     atl = atl + (tss - atl) * (1/7);
-    var tsb = ctl - atl;
     history.push({
       date: ds,
       tss: tss,
