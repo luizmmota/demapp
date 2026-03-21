@@ -980,7 +980,7 @@ function wtype(t,d){var s=(t+' '+d).toLowerCase();if(/swim|pool/.test(s))return'
 function wzone(t,d){var m=(t+' '+d).match(/zone\s*([1-5](?:\s*[-–]\s*[1-5])?)/i)||((t+' '+d).match(/\bz([1-5])\b/i));return m?'Zone '+m[1]:'';}
 function wclean(d){return d.replace(/TSS[\s:]*\d+/gi,'').replace(/Zone\s*\d[–-]?\d?/gi,'').replace(/\s{2,}/g,' ').trim().slice(0,100);}
 function renderICalTop(){var el=gi('ic-top');if(!el)return;if(!CFG.ical){el.textContent='';return;}el.innerHTML=IC.ok?'<span style="color:var(--teal2)">📅 '+IC.n+' treinos</span>':'<span style="color:var(--rust)">📅 iCal erro</span>';}
-function getPlanned(){return D.ical.length>0?D.ical:D.tpp.map(function(w){return Object.assign({},w,{source:'sheet'});});}
+function getPlanned(){ return D.ical.length>0 ? D.ical : (D.tpp.length>0 ? D.tpp.map(function(w){return Object.assign({},w,{source:'sheet'});}) : []); }
 
 // ── SHEETS ────────────────────────────────────────────────────────────────────
 async function loadSheets(){
@@ -1053,15 +1053,17 @@ function closePopup(){ gi('popup').classList.remove('open'); }
 document.addEventListener('keydown', function(e){ if(e.key==='Escape') closePopup(); });
 
 function showPlannedWorkout(idx){
-  var pl = getPlanned(); var wk = pl[idx]; if(!wk) return;
+  // idx is index into D.ical (or D.tpp fallback)
+  var pl = D.ical.length > 0 ? D.ical : D.tpp;
+  var wk = pl[idx]; if(!wk) return;
   var body = '<div class="popup-grid">'
     +(wk.duration_minutes>0?'<div class="popup-stat"><div class="popup-stat-label">Duração</div><div class="popup-stat-val">'+wk.duration_minutes+'min</div></div>':'')
     +(wk.intensity_zone?'<div class="popup-stat"><div class="popup-stat-label">Zona</div><div class="popup-stat-val">'+wk.intensity_zone+'</div></div>':'')
     +(wk.workout_type?'<div class="popup-stat"><div class="popup-stat-label">Esporte</div><div class="popup-stat-val">'+em(wk.workout_type)+' '+wk.workout_type+'</div></div>':'')
-    +(wk.completed==='Yes'?'<div class="popup-stat"><div class="popup-stat-label">Status</div><div class="popup-stat-val" style="color:var(--teal2)">✓ Concluído</div></div>':'')
+    +(wk.completed==='Yes'?'<div class="popup-stat"><div class="popup-stat-label">Status</div><div class="popup-stat-val" style="color:var(--teal2)">✓ Concluído</div></div>':'<div class="popup-stat"><div class="popup-stat-label">Status</div><div class="popup-stat-val" style="color:var(--muted)">Planejado</div></div>')
     +'</div>'
     +(wk.description?'<div style="background:rgba(255,255,255,0.03);border-radius:8px;padding:0.85rem;font-size:0.82rem;color:var(--cream2);line-height:1.7">'+wk.description+'</div>':'');
-  openPopup(wk.title, wk.date + (IC.ok?' · TrainingPeaks iCal':' · Planilha'), body);
+  openPopup(wk.title, wk.date+' · '+wk.workout_type+(IC.ok?' · TrainingPeaks iCal':' · Planilha'), body);
 }
 
 function showStravaActivity(idx){
@@ -1262,7 +1264,7 @@ async function renderBriefing(){
   var todayHtml=todayW.length?(
     '<div class="card"><div class="card-title">📅 Treinos de Hoje &nbsp;'+src+'</div><div class="wlist">'
     +todayW.map(function(wk){
-      var pidx=allPlanned.indexOf(wk);
+      var pidx=D.ical.indexOf(wk); if(pidx<0) pidx=D.tpp.indexOf(wk);
       return'<div class="wi wi-'+wk.workout_type+'" onclick="showPlannedWorkout('+pidx+')" style="cursor:pointer">'
         +'<div class="we">'+em(wk.workout_type)+'</div>'
         +'<div class="winfo"><div class="wt">'+wk.title+'</div>'
@@ -1276,20 +1278,18 @@ async function renderBriefing(){
   var weekHtml='<div class="card"><div class="card-title">📆 Esta Semana &nbsp;<span style="font-family:var(--font-mono);font-size:0.62rem;color:var(--muted)">'+weekActs.length+' treinos · '+weekTSS+' TSS</span></div>'
     +'<div class="week-grid">'
     +weekDays.map(function(day){
-      var cls='week-day'+(day.isToday?' today':'')+(day.acts.length||day.planned.length?' has-workout':'');
+      var cls='week-day'+(day.isToday?' today':'')+(day.acts.length?' has-workout':'');
+      // Only Strava activities — with correct D.acts index
       var actsHtml=day.acts.map(function(a){
-        var idx=D.acts.indexOf(a);
-        return'<span class="wd-act" onclick="event.stopPropagation();showStravaActivity('+idx+')" style="color:var(--teal2);cursor:pointer" title="'+a.name+'">'+em(a.activity_type)+' '+a.duration_minutes+'m</span>';
-      }).join('');
-      var planHtml=day.planned.map(function(wk){
-        var pidx=allPlanned.indexOf(wk);
-        return'<span class="wd-act" onclick="event.stopPropagation();showPlannedWorkout('+pidx+')" style="color:var(--gold);cursor:pointer" title="'+wk.title+'">'+em(wk.workout_type)+' '+wk.title.slice(0,8)+'</span>';
+        var realIdx=D.acts.indexOf(a);
+        return'<span class="wd-act" onclick="event.stopPropagation();showStravaActivity('+realIdx+')" style="color:var(--teal2);cursor:pointer" title="'+a.name+'">'
+          +em(a.activity_type)+' '+a.duration_minutes+'m</span>';
       }).join('');
       var dayTSS=day.acts.reduce(function(s,a){return s+(+a.tss||0);},0);
       return'<div class="'+cls+'">'
         +'<div class="wd-label">'+day.label+'</div>'
         +'<div class="wd-date" style="color:'+(day.isToday?'var(--teal2)':'var(--cream2)')+'">'+day.date.getDate()+'</div>'
-        +actsHtml+planHtml
+        +actsHtml
         +(dayTSS>0?'<div style="font-family:var(--font-mono);font-size:0.55rem;color:var(--muted);margin-top:0.2rem">'+dayTSS+' TSS</div>':'')
       +'</div>';
     }).join('')
@@ -1321,9 +1321,17 @@ async function renderBriefing(){
       var ctlTrend = spark7.length>=2?(spark7[spark7.length-1].ctl-spark7[0].ctl>0?'↑':'↓'):'';
       var atlTrend = spark7.length>=2?(spark7[spark7.length-1].atl-spark7[0].atl>0?'↑':'↓'):'';
       var tsbTrend = spark7.length>=2?(spark7[spark7.length-1].tsb-spark7[0].tsb>0?'↑':'↓'):'';
+      // CTL label
+      var ctlN = af ? +af.ctl : NaN;
+      var ctlLbl = isNaN(ctlN)?'Sem dados':ctlN>90?'Elite':ctlN>70?'Alto':ctlN>50?'Moderado':ctlN>30?'Baixo':'Iniciando';
+      // ATL label
+      var atlN = af ? +af.atl : NaN;
+      var atlLbl = isNaN(atlN)?'Sem dados':atlN>atlN && atlN>100?'Muito Alta':atlN>80?'Alta':atlN>50?'Moderada':atlN>25?'Baixa':'Mínima';
+      // Refine ATL label by comparing to CTL
+      if(!isNaN(atlN)&&!isNaN(ctlN)){ atlLbl = atlN>ctlN*1.2?'Acima do normal':atlN>ctlN*0.9?'Normal':atlN<ctlN*0.6?'Recuperando':'Abaixo do normal'; }
       return '<div class="g3">'
-        +'<div class="mc"><div class="mc-label">CTL — Condição</div><div class="mc-val ct">'+ctl+' <span style="font-size:0.9rem">'+ctlTrend+'</span></div>'+ctlSpark+'<div class="mc-sub">7 dias</div></div>'
-        +'<div class="mc"><div class="mc-label">ATL — Fadiga</div><div class="mc-val co">'+atl+' <span style="font-size:0.9rem">'+atlTrend+'</span></div>'+atlSpark+'<div class="mc-sub">7 dias</div></div>'
+        +'<div class="mc"><div class="mc-label">CTL — Condição</div><div class="mc-val ct">'+ctl+' <span style="font-size:0.9rem">'+ctlTrend+'</span></div>'+ctlSpark+'<div class="mc-sub">'+ctlLbl+'</div></div>'
+        +'<div class="mc"><div class="mc-label">ATL — Fadiga</div><div class="mc-val co">'+atl+' <span style="font-size:0.9rem">'+atlTrend+'</span></div>'+atlSpark+'<div class="mc-sub">'+atlLbl+'</div></div>'
         +'<div class="mc"><div class="mc-label">TSB — Forma</div><div class="mc-val '+tsbC+'">'+tsb+' <span style="font-size:0.9rem">'+tsbTrend+'</span></div>'+tsbSpark+'<div class="mc-sub">'+tsbLbl+'</div></div>'
         +'</div>';
     }())
@@ -1355,7 +1363,7 @@ function renderDashboard(){
   var recov7=D.recoveries.slice(0,7).reverse();
   var hrv7=recov7.map(function(r){return Math.round(r.score.hrv_rmssd_milli||0);});
   var rsc7=recov7.map(function(r){return r.score.recovery_score||0;});
-  var lbl7=recov7.map(function(r,i){var d=r._cycleStart||r._date;return d?new Date(d).toLocaleDateString('pt-BR',{weekday:'short'}):'D'+(i+1);});
+  var lbl7=recov7.map(function(r,i){var d=r._cycleStart||r._date;if(d){var dt=new Date(d);return dt.toLocaleDateString('pt-BR',{weekday:'short'})+' '+dt.getDate();}return 'D'+(i+1);});
   // Use auto-calculated fitness if available
   var useFitnessHistory = D.fitness && D.fitness.length > 0;
   var tph = useFitnessHistory ? D.fitness.slice(-90).filter(function(d,i){ return i%10===0||i===D.fitness.slice(-90).length-1; }).map(function(d){ return {date:d.date,ctl:d.ctl,atl:d.atl,tsb:d.tsb}; }) : D.tph.slice(0,8).reverse();
@@ -1366,8 +1374,27 @@ function renderDashboard(){
     (!hasW?'<div class="cta"><div><h3>💚 Conecte seu Whoop</h3><p>Veja suas tendências de recuperação e HRV.</p></div><button class="btn-cta" onclick="openWhoopModal()">Conectar →</button></div>':'')+
     '<div class="g3" style="margin-bottom:1.1rem">'
       +'<div class="mc"><div class="mc-label">Recuperação Hoje</div><div class="mc-val '+rc+'">'+(r0!==null?r0:'—')+'</div><div class="mc-sub">/ 100</div></div>'
-      +'<div class="mc"><div class="mc-label">HRV Hoje</div><div class="mc-val ct">'+(h0!==null?h0+'ms':'—')+'</div><div class="mc-sub">Variabilidade da FC</div></div>'
-      +'<div class="mc"><div class="mc-label">Forma Atual (TSB)</div><div class="mc-val '+(function(){ var af=autoFitness(); var t=af?+af.tsb:NaN; return isNaN(t)?'cm':t>5?'cg':t<-15?'cr':'co'; }())+'">'+(function(){ var af=autoFitness(); return af?af.tsb:'—'; }())+'</div><div class="mc-sub">'+(useFitnessHistory?'Auto-calc Strava':'TrainingPeaks')+'</div></div>'
+      +(function(){
+        // HRV vs 6-month average
+        var allHRV = D.recoveries.map(function(r){ return r.score&&r.score.hrv_rmssd_milli ? Math.round(r.score.hrv_rmssd_milli) : 0; }).filter(Boolean);
+        var avgHRV6m = allHRV.length > 1 ? Math.round(allHRV.reduce(function(a,b){return a+b;},0)/allHRV.length) : null;
+        var hrvDiff = (h0 && avgHRV6m) ? Math.round(((h0-avgHRV6m)/avgHRV6m)*100) : null;
+        var hrvSub = avgHRV6m
+          ? (hrvDiff > 0 ? '<span style="color:var(--teal2)">+'+hrvDiff+'%</span>' : '<span style="color:var(--rust)">'+hrvDiff+'%</span>')
+            +' vs média ('+avgHRV6m+'ms)'
+          : 'Variabilidade da FC';
+        // TSB description
+        var af2=autoFitness(); var tsb2=af2?+af2.tsb:NaN;
+        var tsbDesc = isNaN(tsb2)?'Sem dados'
+          : tsb2>10?'Descansado — pronto pra performance'
+          : tsb2>0?'Fresco — boa janela de treino'
+          : tsb2>-10?'Ótimo — zona de treino ideal'
+          : tsb2>-20?'Carregado — atenção ao volume'
+          : tsb2>-30?'Fatigado — reduzir intensidade'
+          : 'Sobrecarregado — recuperação prioritária';
+        return '<div class="mc"><div class="mc-label">HRV Hoje</div><div class="mc-val ct">'+(h0!==null?h0+'ms':'—')+'</div><div class="mc-sub">'+hrvSub+'</div></div>'
+          +'<div class="mc"><div class="mc-label">Forma Atual (TSB)</div><div class="mc-val '+(isNaN(tsb2)?'cm':tsb2>5?'cg':tsb2<-15?'cr':'co')+'">'+(af2?af2.tsb:'—')+'</div><div class="mc-sub">'+tsbDesc+'</div></div>';
+      }())
     +'</div>'
     +'<div class="g2">'
       +'<div class="card"><div class="card-title">💚 Recuperação — 7 Dias</div><div class="cw"><canvas id="cr"></canvas></div></div>'
@@ -1417,7 +1444,7 @@ function renderPlan(){
   var sP=IC.ok?'<span class="spill spi">iCal ao vivo</span>':'<span class="spill sps">planilha</span>';
   var items=upcoming.map(function(wk){
     var d=new Date(wk.date),isT=d.toDateString()===today.toDateString(),isPast=d<today&&!isT;
-    var pidx2=upcoming.indexOf(wk);
+    var pidx2=D.ical.indexOf(wk); if(pidx2<0) pidx2=D.tpp.indexOf(wk); if(pidx2<0) pidx2=upcoming.indexOf(wk);
     return'<div class="wi wi-'+(wk.workout_type||'Other')+'" onclick="showPlannedWorkout('+pidx2+')" style="cursor:pointer;'+(isPast?'opacity:0.4;':'')+(isT?'background:rgba(58,122,122,0.08);border-left-color:var(--teal2);':'')+'"><div class="we">'+em(wk.workout_type)+'</div><div class="winfo"><div class="wt">'+(isT?'⭐ HOJE — ':'')+wk.title+'</div><div class="wm">'+d.toLocaleDateString('pt-BR',{weekday:'short',month:'short',day:'numeric'})+(+wk.duration_minutes>0?' · '+wk.duration_minutes+'min':'')+(wk.intensity_zone?' · '+wk.intensity_zone:'')+(wk.description?' · <em>'+wk.description.slice(0,70)+'</em>':'')+'</div></div>'+(wk.completed==='Yes'?'<div class="done-check">✓</div>':'<div style="color:var(--muted);font-size:0.75rem">›</div>')+'</div>';
   }).join('');
   el.innerHTML=aH
