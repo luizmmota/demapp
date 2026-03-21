@@ -277,10 +277,14 @@ body::before{
     <div class="s-sec">Claude AI</div>
     <div class="sfg"><label>Anthropic API Key</label><input type="password" id="cfg-key" placeholder="sk-ant-api03-..."/><small style="font-family:var(--font-mono);font-size:0.62rem;color:var(--muted);margin-top:0.2rem;display:block">console.anthropic.com → API Keys</small></div>
     <div class="s-sec">Thresholds de Treino</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.65rem;margin-bottom:0.5rem">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.65rem;margin-bottom:0.65rem">
       <div class="sfg"><label>FTP (watts)</label><input type="number" id="cfg-ftp" placeholder="175"/></div>
       <div class="sfg"><label>Pace Limiar (seg/km)</label><input type="number" id="cfg-rpace" placeholder="315"/><small style="font-family:var(--font-mono);font-size:0.6rem;color:var(--muted)">5:15/km = 315</small></div>
       <div class="sfg"><label>FC Limiar (bpm)</label><input type="number" id="cfg-lthr" placeholder="160"/></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.65rem;margin-bottom:0.5rem">
+      <div class="sfg"><label>FC Repouso (bpm) — fallback manual</label><input type="number" id="cfg-rhr" placeholder="52"/><small style="font-family:var(--font-mono);font-size:0.6rem;color:var(--muted)">Automático via Whoop se conectado</small></div>
+      <div class="sfg"><label>FTP watts — fallback sem FC</label><input type="number" id="cfg-ftp2" placeholder="175"/></div>
     </div>
     <div class="s-sec">TrainingPeaks iCal</div>
     <div class="sfg"><label>iCal URL</label><input type="text" id="cfg-ical" placeholder="https://www.trainingpeaks.com/ical/..."/></div>
@@ -394,7 +398,7 @@ var CLAUDE      = 'https://api.anthropic.com/v1/messages';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 var CFG = {}, CH = [], IC = {ok:false,n:0};
-var D = {cycles:[], recoveries:[], sleeps:[], acts:[], tph:[], tpp:[], ical:[], stravaAthlete:null};
+var D = {cycles:[], recoveries:[], sleeps:[], acts:[], tph:[], tpp:[], ical:[], stravaAthlete:null, whoopWorkouts:[], whoopCalFactor:null};
 
 // ── DEMA PERSONA ──────────────────────────────────────────────────────────────
 var DEMA = 'Voce eh o Demapp, uma versao IA do Dema, treinador de triatlo do Luiz e grande amigo. Personalidade real:\n\nQUEM EH O DEMA:\n- Simples, humano e genuino. Mesmo com conquistas relevantes, mantém postura modesta.\n- Old school raiz: valoriza escuta, percepcao do corpo, metricas tradicionais. Tecnologia eh bonus.\n- Ironico e bem humorado. Determinado, insistente, nao aceita nao como resposta.\n- Treino bom eh treino que voce vomita e passa mal. Nao tem descanso com ele.\n- Cuidado especial com atletas e familias. Cria ambiente de confianca e proximidade.\n- Chama de bixo, Luizinho, meu querido. Nunca formal.\n- Exige consistencia sem gerar pressao desnecessaria. Cobra na medida certa.\n- Adapta quando a vida atrapalha, sem drama, mas sem dar mole.\n\nESTILO:\n- Frases curtas e diretas. Menos eh mais.\n- Ironico quando o atleta enrola: Po ai nao da. Jamais. Nao eh assim nao.\n- Celebra conquistas: Voara pra cima. Ai sim. Agora vai ein!\n- NUNCA sugere pular treino. Nunca. Adapta, reduz, mas cancela jamais.\n- Sem listas, sem markdown, sem linguagem de app. Fala como treinador de rua.\n- Tom: amigo que cobra resultado mas ta junto\n\nFILOSOFIA:\n- Consistencia bate intensidade. Todo dia, todo treino.\n- TSB negativo? Treina mais leve, mas treina.\n- Recuperacao baixa? Vai mais devagar, mas vai.\n\nSEMPRE em portugues do Brasil. Maximo 3 paragrafos curtos. Nunca textos longos.';
@@ -408,7 +412,8 @@ function loadCFG(){
   if(!CFG.hook) CFG.hook = HOOK;
   if(!CFG.ftp)  CFG.ftp  = 175;
   if(!CFG.rpace) CFG.rpace = 315; // 5:15/km in seconds
-  if(!CFG.lthr)  CFG.lthr  = 160; // lactate threshold HR
+  if(!CFG.lthr)    CFG.lthr    = 160;
+  if(!CFG.rhr)     CFG.rhr     = 52;
 }
 function saveCFG(){ localStorage.setItem('demapp_cfg',JSON.stringify(CFG)); }
 
@@ -508,10 +513,16 @@ async function loadWhoop(){
     var sleepArr = sd.records || sd.sleep_collection || [];
     D.sleeps = sleepArr.filter(function(s){ return !s.nap; });
 
-    console.log('Whoop OK — ciclos:' + D.cycles.length + ' rec:' + D.recoveries.length + ' sono:' + D.sleeps.length);
-    if(D.recoveries[0]) console.log('Recovery:', D.recoveries[0].score.recovery_score + '%', 'HRV:', Math.round(D.recoveries[0].score.hrv_rmssd_milli||0) + 'ms');
+    // ── Workouts: last 90 days for TSS calibration ──
+    var ninetyAgo = new Date(); ninetyAgo.setDate(ninetyAgo.getDate()-90);
+    var wd = await wGet('/workout?limit=200&start='+ninetyAgo.toISOString(), tok);
+    var wArr = wd.records || wd.workout_collection || [];
+    D.whoopWorkouts = wArr.filter(function(w){ return w.score && w.score.strain > 0; });
+
+    console.log('Whoop OK — ciclos:'+D.cycles.length+' rec:'+D.recoveries.length+' sono:'+D.sleeps.length+' workouts:'+D.whoopWorkouts.length);
+    if(D.recoveries[0]) console.log('Recovery:', D.recoveries[0].score.recovery_score+'%', 'HRV:', Math.round(D.recoveries[0].score.hrv_rmssd_milli||0)+'ms');
     if(D.cycles[0]&&D.cycles[0].score) console.log('Strain hoje:', D.cycles[0].score.strain);
-    if(D.sleeps[0]&&D.sleeps[0].score) console.log('Sono:', D.sleeps[0].score.sleep_performance_percentage + '%');
+    if(D.sleeps[0]&&D.sleeps[0].score) console.log('Sono:', D.sleeps[0].score.sleep_performance_percentage+'%');
   } catch(e){ console.warn('Whoop erro:', e); }
 }
 
@@ -634,7 +645,9 @@ async function loadStrava(){
       var distKm = a.distance ? +(a.distance/1000).toFixed(2) : 0;
       var durSec = a.moving_time || 0;
       var durMin = Math.round(durSec/60);
-      var tss = calcTSS(a, distKm, durSec);
+      // Find matching Whoop workout by time overlap
+      var whoopMatch = matchWhoopWorkout(a);
+      var tss = whoopMatch ? calcTSSFromWhoop(whoopMatch, durSec) : calcTSS(a, distKm, durSec);
       return {
         date: a.start_date ? a.start_date.split('T')[0] : '',
         activity_type: normalizeStravaType(a.type||a.sport_type||'Other'),
@@ -645,14 +658,19 @@ async function loadStrava(){
         elevation_m: Math.round(a.total_elevation_gain||0),
         avg_hr: a.average_heartrate ? Math.round(a.average_heartrate) : null,
         avg_watts: a.average_watts ? Math.round(a.average_watts) : null,
-        max_watts: a.max_watts||null,
-        avg_cadence: a.average_cadence||null,
         name: a.name||'',
         strava_id: a.id,
         kudos: a.kudos_count||0,
         achievements: a.achievement_count||0,
-        has_power: !!(a.average_watts && a.average_watts > 0),
-        has_hr: !!(a.average_heartrate && a.average_heartrate > 0)
+        whoop_strain: whoopMatch ? whoopMatch.score.strain : null,
+        whoop_avg_hr: whoopMatch && whoopMatch.score ? whoopMatch.score.average_heart_rate : null,
+        whoop_max_hr: whoopMatch && whoopMatch.score ? whoopMatch.score.max_heart_rate : null,
+        whoop_zone1: whoopMatch && whoopMatch.score && whoopMatch.score.zone_duration ? Math.round((whoopMatch.score.zone_duration.zone_one_milli||0)/60000) : null,
+        whoop_zone2: whoopMatch && whoopMatch.score && whoopMatch.score.zone_duration ? Math.round((whoopMatch.score.zone_duration.zone_two_milli||0)/60000) : null,
+        whoop_zone3: whoopMatch && whoopMatch.score && whoopMatch.score.zone_duration ? Math.round((whoopMatch.score.zone_duration.zone_three_milli||0)/60000) : null,
+        whoop_zone4: whoopMatch && whoopMatch.score && whoopMatch.score.zone_duration ? Math.round((whoopMatch.score.zone_duration.zone_four_milli||0)/60000) : null,
+        whoop_zone5: whoopMatch && whoopMatch.score && whoopMatch.score.zone_duration ? Math.round((whoopMatch.score.zone_duration.zone_five_milli||0)/60000) : null,
+        tss_source: whoopMatch ? 'whoop' : (a.average_heartrate ? 'hrTSS' : 'estimate')
       };
     }).filter(function(a){ return a.date; });
     // Sort newest first
@@ -682,44 +700,111 @@ function normalizeStravaType(t){
   return m[t] || t || 'Other';
 }
 
+// ── Match Strava activity to Whoop workout by time overlap ──
+function matchWhoopWorkout(stravaAct){
+  if(!D.whoopWorkouts || !D.whoopWorkouts.length) return null;
+  var sStart = new Date(stravaAct.start_date).getTime();
+  var sEnd   = sStart + (stravaAct.elapsed_time||stravaAct.moving_time||0)*1000;
+  var best = null, bestOverlap = 0;
+  for(var i=0; i<D.whoopWorkouts.length; i++){
+    var w = D.whoopWorkouts[i];
+    if(!w.start||!w.end) continue;
+    var wStart = new Date(w.start).getTime();
+    var wEnd   = new Date(w.end).getTime();
+    // Calculate overlap in ms
+    var overlapStart = Math.max(sStart, wStart);
+    var overlapEnd   = Math.min(sEnd,   wEnd);
+    var overlap = overlapEnd - overlapStart;
+    // Must overlap by at least 60% of shorter activity
+    var minDur = Math.min(sEnd-sStart, wEnd-wStart);
+    if(overlap > 0 && minDur > 0 && overlap/minDur > 0.6){
+      if(overlap > bestOverlap){ bestOverlap = overlap; best = w; }
+    }
+  }
+  return best;
+}
+
+// ── TSS from Whoop strain using Bannister hrTSS scaled to strain ──
+// Whoop strain 0-21 maps to cardiovascular load
+// TSS = strain × calibration_factor × duration_hours
+function calcTSSFromWhoop(whoopWorkout, durSec){
+  var score = whoopWorkout.score;
+  if(!score) return 0;
+  var hours   = durSec / 3600;
+  var strain  = score.strain || 0;
+  var avgHR   = score.average_heart_rate || 0;
+  var maxHR   = score.max_heart_rate || 200;
+  var lthr    = CFG.lthr || 160;
+  var rhr     = getRestingHR();
+
+  // Method 1: hrTSS from Whoop HR data (most accurate)
+  if(avgHR > 0 && rhr > 0 && lthr > rhr){
+    var hrReserve = lthr - rhr;
+    var IF_hr = Math.max(0, Math.min((avgHR - rhr) / hrReserve, 1.35));
+    var hrTSS = hours * IF_hr * IF_hr * 100;
+    // Blend with strain-based: strain gives us intensity distribution info
+    // IF strain is high relative to HR, workouts had intensity spikes not captured by avg HR
+    var strainIF = strain / 21;
+    var blendedIF = (IF_hr * 0.7) + (strainIF * 0.3);
+    return hours * blendedIF * blendedIF * 100;
+  }
+
+  // Method 2: pure strain-based (when no HR)
+  // Calibrated: strain 10 for 1h ≈ TSS 55, strain 18 for 1h ≈ TSS 120
+  var strainFactor = CFG.whoopCalFactor || 6.5;
+  return strain * strainFactor * Math.sqrt(hours);
+}
+
 function calcTSS(a, distKm, durSec){
-  var type = normalizeStravaType(a.type||a.sport_type||'');
+  var type  = normalizeStravaType(a.type||a.sport_type||'');
   var hours = durSec / 3600;
   if(hours <= 0) return 0;
-  var ftp   = CFG.ftp  || 175;
-  var rpace = CFG.rpace || 315; // threshold sec/km
-  var lthr  = CFG.lthr  || 160;
+  var lthr  = CFG.lthr || 160;   // FC limiar
+  var hrRest = getRestingHR();    // FC repouso do Whoop ou manual
 
-  // ── BIKE: use power if available ──
-  if((type==='Ride') && a.average_watts && a.average_watts>0){
-    var np = a.average_watts; // use avg as NP proxy (no weighted power from Strava summary)
-    var IF = np / ftp;
-    return hours * IF * IF * 100;
+  // ── hrTSS Bannister formula ──
+  // hrTSS = hours × IF² × 100
+  // IF = (HRavg - HRrest) / (LTHR - HRrest)
+  if(a.average_heartrate && a.average_heartrate > 0 && hrRest > 0){
+    var hrReserve = lthr - hrRest;
+    if(hrReserve > 0){
+      var IF_hr = (a.average_heartrate - hrRest) / hrReserve;
+      IF_hr = Math.max(0, Math.min(IF_hr, 1.3)); // cap 0–130%
+      return hours * IF_hr * IF_hr * 100;
+    }
   }
 
-  // ── RUN: use pace if distance available ──
-  if(type==='Run' && distKm>0){
-    var paceSecKm = durSec / distKm; // actual pace sec/km
-    var IF_run = rpace / paceSecKm;  // threshold/actual — faster = higher IF
-    IF_run = Math.min(IF_run, 1.3);  // cap at 130%
-    return hours * IF_run * IF_run * 100;
+  // ── Fallbacks when no HR data ──
+  // Bike with power
+  if(type==='Ride' && a.average_watts && a.average_watts > 0){
+    var ftp = CFG.ftp || 175;
+    var np  = a.average_watts * (CFG.mx_ride || 1.12);
+    var IF_p = Math.min(np / ftp, 1.4);
+    return hours * IF_p * IF_p * 100;
   }
-
-  // ── SWIM: duration-based with moderate intensity ──
-  if(type==='Swim'){
-    return hours * 60; // ~60 TSS/hour for moderate swim
+  // Run with pace
+  if(type==='Run' && distKm > 0){
+    var rpace = CFG.rpace || 315;
+    var IF_r = Math.min(rpace / (durSec/distKm), 1.35);
+    return hours * IF_r * IF_r * 100;
   }
-
-  // ── HR-based fallback (any type with HR) ──
-  if(a.average_heartrate && a.average_heartrate>0){
-    var hrIF = Math.min(a.average_heartrate / lthr, 1.2);
-    return hours * hrIF * hrIF * 100;
-  }
-
-  // ── Last resort: suffer score or duration estimate ──
-  if(a.suffer_score && a.suffer_score>0) return a.suffer_score;
-  return hours * 55; // ~55 TSS/hr generic
+  // Strength — low TSS
+  if(type==='Strength') return hours * 30;
+  // Generic duration estimate
+  return hours * 55;
 }
+
+// ── Get resting HR: Whoop first, then manual config ──
+function getRestingHR(){
+  // Try latest Whoop recovery
+  if(D.recoveries && D.recoveries[0] && D.recoveries[0].score){
+    var rhr = D.recoveries[0].score.resting_heart_rate;
+    if(rhr && rhr > 30 && rhr < 100) return rhr;
+  }
+  // Manual config fallback
+  return CFG.rhr || 52;
+}
+
 
 // ── CTL/ATL/TSB from full activity history ──
 function calcFitnessHistory(acts){
@@ -1269,13 +1354,32 @@ function renderActivities(){
     var distStr=+a.distance_km>0?(+a.distance_km).toFixed(1)+'km':'—';
     var hrStr=a.avg_hr?a.avg_hr+'bpm':'—';
     var achievements=+a.achievements>0?'<span style="color:var(--gold);font-size:0.7rem" title="'+a.achievements+' conquistas">🏅</span>':'';
+    // HR zones from Whoop
+    var zoneBar = '';
+    if(a.whoop_zone1!==null){
+      var total = (a.whoop_zone1||0)+(a.whoop_zone2||0)+(a.whoop_zone3||0)+(a.whoop_zone4||0)+(a.whoop_zone5||0);
+      if(total>0){
+        var z = [
+          {v:a.whoop_zone1,c:'#4a9a9a'},{v:a.whoop_zone2,c:'#5abf8a'},
+          {v:a.whoop_zone3,c:'#c8962a'},{v:a.whoop_zone4,c:'#e07850'},{v:a.whoop_zone5,c:'#c45a2a'}
+        ];
+        zoneBar = '<div style="display:flex;height:3px;border-radius:2px;overflow:hidden;margin-top:3px;width:80px">'
+          +z.map(function(z){ return z.v>0?'<div style="width:'+Math.round(z.v/total*100)+'%;background:'+z.c+'"></div>':''; }).join('')
+        +'</div>';
+      }
+    }
+    var srcBadge = a.tss_source==='whoop'
+      ? '<span style="font-family:var(--font-mono);font-size:0.55rem;color:var(--teal2);background:rgba(58,122,122,0.1);border-radius:2px;padding:0.05rem 0.3rem;margin-left:3px">W</span>'
+      : a.tss_source==='hrTSS'
+      ? '<span style="font-family:var(--font-mono);font-size:0.55rem;color:var(--gold);background:rgba(200,150,42,0.1);border-radius:2px;padding:0.05rem 0.3rem;margin-left:3px">HR</span>'
+      : '<span style="font-family:var(--font-mono);font-size:0.55rem;color:var(--muted);background:rgba(100,100,100,0.1);border-radius:2px;padding:0.05rem 0.3rem;margin-left:3px">est</span>';
     return'<tr id="arow-'+idx+'">'
       +'<td style="font-family:var(--font-mono);font-size:0.7rem">'+a.date+'</td>'
       +'<td>'+em(a.activity_type)+' <span style="font-size:0.8rem">'+( a.name||a.activity_type)+'</span>'+achievements+'</td>'
       +'<td style="font-family:var(--font-mono)">'+a.duration_minutes+'min</td>'
       +'<td style="font-family:var(--font-mono)">'+distStr+'</td>'
-      +'<td style="font-family:var(--font-mono)">'+hrStr+'</td>'
-      +'<td class="'+tc+'" style="font-family:var(--font-mono);font-weight:600">'+a.tss+'</td>'
+      +'<td style="font-family:var(--font-mono)">'+(a.whoop_avg_hr||a.avg_hr||'—')+(a.whoop_avg_hr?'<span style="font-size:0.6rem;color:var(--teal2)">W</span>':'')+zoneBar+'</td>'
+      +'<td class="'+tc+'" style="font-family:var(--font-mono);font-weight:600">'+a.tss+srcBadge+'</td>'
       +'<td><button onclick="editActTSS('+idx+')" style="background:var(--navy2);border:1px solid var(--border);border-radius:3px;color:var(--muted);font-size:0.6rem;padding:0.1rem 0.38rem;cursor:pointer;font-family:var(--font-mono)">editar</button></td>'
     +'</tr>';
   }).join('');
@@ -1455,7 +1559,8 @@ function populateSettings(){
   if(gi('cfg-key'))  gi('cfg-key').value=localStorage.getItem('claude_key')||'';
   if(gi('cfg-ftp'))   gi('cfg-ftp').value=CFG.ftp||175;
   if(gi('cfg-rpace')) gi('cfg-rpace').value=CFG.rpace||315;
-  if(gi('cfg-lthr'))  gi('cfg-lthr').value=CFG.lthr||160;
+  if(gi('cfg-lthr'))    gi('cfg-lthr').value   = CFG.lthr||160;
+  if(gi('cfg-rhr')) gi('cfg-rhr').value = CFG.rhr||52;
   if(gi('cfg-ical')) gi('cfg-ical').value=CFG.ical||'';
   if(gi('cfg-tph'))  gi('cfg-tph').value=CFG.tph||'';
   if(gi('cfg-tpp'))  gi('cfg-tpp').value=CFG.tpp||'';
@@ -1469,7 +1574,8 @@ function saveSettings(){
   var key = gi('cfg-key').value.trim(); if(key) localStorage.setItem('claude_key', key);
   if(gi('cfg-ftp')&&gi('cfg-ftp').value)   CFG.ftp   = +gi('cfg-ftp').value;
   if(gi('cfg-rpace')&&gi('cfg-rpace').value) CFG.rpace = +gi('cfg-rpace').value;
-  if(gi('cfg-lthr')&&gi('cfg-lthr').value)  CFG.lthr  = +gi('cfg-lthr').value;
+  if(gi('cfg-lthr')&&gi('cfg-lthr').value)    CFG.lthr    = +gi('cfg-lthr').value;
+  if(gi('cfg-rhr')&&gi('cfg-rhr').value) CFG.rhr = +gi('cfg-rhr').value;
   CFG.ical = gi('cfg-ical').value.trim().replace('webcal://','https://');
   CFG.tph  = gi('cfg-tph').value.trim();
   CFG.tpp  = gi('cfg-tpp').value.trim();
