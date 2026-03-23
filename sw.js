@@ -7,16 +7,17 @@ self.addEventListener('install', e => {
 });
 
 self.addEventListener('activate', e => {
-  e.waitUntil(caches.keys().then(keys => 
+  e.waitUntil(caches.keys().then(keys =>
     Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))
   ));
   self.clients.claim();
 });
 
 self.addEventListener('fetch', e => {
-  if(e.request.url.includes('api.anthropic.com') || 
-     e.request.url.includes('strava.com') || 
+  if(e.request.url.includes('api.anthropic.com') ||
+     e.request.url.includes('strava.com') ||
      e.request.url.includes('whoop.com') ||
-     e.request.url.includes('allorigins.win')) return;
+     e.request.url.includes('allorigins.win') ||
+     e.request.url.includes('workers.dev')) return;
   e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)));
 });
