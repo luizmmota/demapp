@@ -265,41 +265,12 @@ body::before{
 </head>
 <body>
 
-<!-- WHOOP MODAL -->
-<div class="oauth-modal" id="wmodal">
-  <div class="mcard">
-    <div style="font-size:2rem;margin-bottom:0.5rem">💚</div>
-    <h3>Conectar Whoop</h3>
-    <p class="ms">Uma página do Whoop vai abrir. Siga os passos:</p>
-    <ol class="msteps">
-      <li>Entre no Whoop e clique em <strong>Aprovar</strong></li>
-      <li>Vai cair numa página em branco — <strong>normal</strong></li>
-      <li>Copia a <strong>URL completa</strong> da barra de endereço<br><small style="color:var(--muted);font-family:var(--font-mono)">(começa com http://localhost/?code=...)</small></li>
-      <li>Cola abaixo e clica em Conectar</li>
-    </ol>
-    <input class="minput" id="w-url" placeholder="http://localhost/?code=abc123..."/>
-    <div class="mst" id="w-st"></div>
-    <button class="btn-connect" onclick="submitWhoop()">Conectar Whoop →</button>
-    <button class="btn-ghost" onclick="closeModal('wmodal')">Cancelar</button>
-  </div>
-</div>
-
-<!-- STRAVA MODAL -->
-<div class="oauth-modal" id="smodal">
-  <div class="mcard">
-    <div style="font-size:2rem;margin-bottom:0.5rem">🟠</div>
-    <h3>Conectar Strava</h3>
-    <p class="ms">Uma página do Strava vai abrir. Siga os passos:</p>
-    <ol class="msteps">
-      <li>Clica em <strong>Autorizar</strong> no Strava</li>
-      <li>Vai cair numa página em branco — <strong>normal</strong></li>
-      <li>Copia a <strong>URL completa</strong> da barra de endereço<br><small style="color:var(--muted);font-family:var(--font-mono)">(começa com http://localhost/?code=...)</small></li>
-      <li>Cola abaixo e clica em Conectar</li>
-    </ol>
-    <input class="minput" id="s-url" placeholder="http://localhost/?code=abc123..."/>
-    <div class="mst" id="s-st"></div>
-    <button class="btn-connect" onclick="submitStrava()" style="background:#fc4c02">Conectar Strava →</button>
-    <button class="btn-ghost" onclick="closeModal('smodal')">Cancelar</button>
+<!-- OAUTH LOADING MODAL -->
+<div class="oauth-modal" id="oauth-loading">
+  <div class="mcard" style="text-align:center;padding:2.5rem">
+    <div class="spin" style="width:32px;height:32px;border-width:3px;margin:0 auto 1.25rem"></div>
+    <h3 id="oauth-loading-title">Conectando…</h3>
+    <p class="ms" id="oauth-loading-msg">Aguardando autorização…</p>
   </div>
 </div>
 
@@ -432,7 +403,7 @@ var WHOOP_CID   = '90aa056f-a01c-49f1-9c61-7b1e22b02634';
 var WHOOP_CSEC  = '4e07dc52a6a5be5d0e4e09b1e172fba309fe1b4eda578b72a68cf60d6f78742d';
 var STRAVA_CID  = '214333';
 var STRAVA_CSEC = '03ab133ddb87dcd2643cb7e93aee9f240c864432';
-var REDIR       = 'http://localhost';
+var REDIR       = 'https://luizmmota.github.io/demappv6/';
 var W_API       = 'https://api.prod.whoop.com/developer/v2';
 var S_API       = 'https://www.strava.com/api/v3';
 var CLAUDE      = 'https://api.anthropic.com/v1/messages';
@@ -461,6 +432,34 @@ function saveCFG(){ localStorage.setItem('demapp_cfg',JSON.stringify(CFG)); }
 // ── LAUNCH ────────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', function(){
   loadCFG();
+  // ── Handle OAuth callback (code in URL) ──
+  var urlParams = new URLSearchParams(window.location.search);
+  var code = urlParams.get('code');
+  var pending = localStorage.getItem('oauth_pending');
+  if(code && pending){
+    // Clean URL immediately
+    window.history.replaceState({}, document.title, window.location.pathname);
+    localStorage.removeItem('oauth_pending');
+    gi('app').style.display = 'block';
+    // Show loading modal
+    gi('oauth-loading').classList.add('open');
+    if(pending === 'whoop'){
+      gi('oauth-loading-title').textContent = 'Conectando Whoop…';
+      gi('oauth-loading-msg').textContent = 'Trocando código por token de acesso…';
+      handleWhoopCallback(code).then(function(){
+        gi('oauth-loading').classList.remove('open');
+        reload();
+      });
+    } else if(pending === 'strava'){
+      gi('oauth-loading-title').textContent = 'Conectando Strava…';
+      gi('oauth-loading-msg').textContent = 'Trocando código por token de acesso…';
+      handleStravaCallback(code).then(function(){
+        gi('oauth-loading').classList.remove('open');
+        reload();
+      });
+    }
+    return;
+  }
   gi('app').style.display = 'block';
   if(!localStorage.getItem('claude_key')){
     setTimeout(function(){
@@ -472,6 +471,45 @@ window.addEventListener('DOMContentLoaded', function(){
   reload();
   populateSettings();
 });
+
+async function handleWhoopCallback(code){
+  var body = 'grant_type=authorization_code&code='+encodeURIComponent(code)
+    +'&client_id='+encodeURIComponent(WHOOP_CID)
+    +'&client_secret='+encodeURIComponent(WHOOP_CSEC)
+    +'&redirect_uri='+encodeURIComponent(REDIR);
+  try{
+    var r = await fetch(PROXY+'?body='+encodeURIComponent(body));
+    var d = await r.json();
+    if(d.access_token){
+      saveWhoopTok(d);
+      console.log('Whoop conectado via callback!');
+    } else {
+      console.error('Whoop callback erro:', d);
+      alert('Erro ao conectar Whoop: '+(d.error_description||d.error||JSON.stringify(d)));
+    }
+  } catch(e){ console.error('Whoop callback erro:', e); alert('Erro: '+e.message); }
+}
+
+async function handleStravaCallback(code){
+  var body = 'client_id='+STRAVA_CID
+    +'&client_secret='+encodeURIComponent(STRAVA_CSEC)
+    +'&code='+encodeURIComponent(code)
+    +'&grant_type=authorization_code';
+  try{
+    var r = await fetch(PROXY+'?type=strava_token&body='+encodeURIComponent(body));
+    var d = await r.json();
+    if(d.access_token){
+      localStorage.setItem('s_tok', d.access_token);
+      localStorage.setItem('s_exp', Date.now()+(d.expires_in||21600)*1000);
+      localStorage.setItem('s_ref', d.refresh_token||'');
+      if(d.athlete) localStorage.setItem('s_athlete', JSON.stringify(d.athlete));
+      console.log('Strava conectado via callback!');
+    } else {
+      console.error('Strava callback erro:', d);
+      alert('Erro ao conectar Strava: '+(d.message||JSON.stringify(d)));
+    }
+  } catch(e){ console.error('Strava callback erro:', e); alert('Erro: '+e.message); }
+}
 
 async function reload(){
   gi('dot').style.background = 'var(--gold)';
@@ -492,38 +530,17 @@ async function reload(){
 function openWhoopModal(){
   var state = Math.random().toString(36).slice(2) + Date.now();
   localStorage.setItem('w_state', state);
+  localStorage.setItem('oauth_pending', 'whoop');
   var url = 'https://api.prod.whoop.com/oauth/oauth2/auth'
     + '?client_id=' + encodeURIComponent(WHOOP_CID)
     + '&redirect_uri=' + encodeURIComponent(REDIR)
     + '&response_type=code'
     + '&scope=' + encodeURIComponent('read:recovery read:sleep read:workout read:cycles read:body_measurement')
     + '&state=' + state;
-  window.open(url, '_blank', 'width=520,height=720,noopener,noreferrer');
-  gi('w-url').value = ''; gi('w-st').textContent = '';
-  gi('wmodal').classList.add('open');
+  window.location.href = url;
 }
 
-async function submitWhoop(){
-  var raw = gi('w-url').value.trim(), st = gi('w-st');
-  if(!raw){ st.textContent = 'Cola a URL primeiro.'; return; }
-  var code = '';
-  try{ code = new URLSearchParams(raw.includes('?')?raw.split('?')[1]:raw).get('code')||''; }catch(e){}
-  if(!code){ st.textContent = 'Nenhum código encontrado na URL.'; st.style.color='var(--rust)'; return; }
-  st.textContent = 'Conectando…'; st.style.color = 'var(--gold)';
-  var body = 'grant_type=authorization_code&code='+encodeURIComponent(code)
-    +'&client_id='+encodeURIComponent(WHOOP_CID)
-    +'&client_secret='+encodeURIComponent(WHOOP_CSEC)
-    +'&redirect_uri='+encodeURIComponent(REDIR);
-  try{
-    var r = await fetch(PROXY+'?body='+encodeURIComponent(body));
-    var d = await r.json();
-    if(d.access_token){
-      saveWhoopTok(d);
-      st.textContent = '✅ Conectado!'; st.style.color='var(--teal2)';
-      setTimeout(async function(){ closeModal('wmodal'); await reload(); }, 800);
-    } else { st.textContent = '❌ '+(d.error_description||d.error||JSON.stringify(d)); st.style.color='var(--rust)'; }
-  } catch(e){ st.textContent = '❌ '+e.message; st.style.color='var(--rust)'; }
-}
+// submitWhoop replaced by handleOAuthCallback()
 
 function saveWhoopTok(d){
   localStorage.setItem('w_tok', d.access_token);
@@ -607,40 +624,16 @@ function renderWhoopTop(){
 
 // ── STRAVA OAUTH ──────────────────────────────────────────────────────────────
 function openStravaModal(){
+  localStorage.setItem('oauth_pending', 'strava');
   var url = 'https://www.strava.com/oauth/authorize'
     + '?client_id=' + STRAVA_CID
     + '&redirect_uri=' + encodeURIComponent(REDIR)
     + '&response_type=code'
     + '&scope=read,activity:read_all';
-  window.open(url, '_blank', 'width=520,height=720,noopener,noreferrer');
-  gi('s-url').value = ''; gi('s-st').textContent = '';
-  gi('smodal').classList.add('open');
+  window.location.href = url;
 }
 
-async function submitStrava(){
-  var raw = gi('s-url').value.trim(), st = gi('s-st');
-  if(!raw){ st.textContent = 'Cola a URL primeiro.'; return; }
-  var code = '';
-  try{ code = new URLSearchParams(raw.includes('?')?raw.split('?')[1]:raw).get('code')||''; }catch(e){}
-  if(!code){ st.textContent = 'Nenhum código encontrado.'; st.style.color='var(--rust)'; return; }
-  st.textContent = 'Conectando…'; st.style.color='var(--gold)';
-  var body = 'client_id='+STRAVA_CID
-    +'&client_secret='+encodeURIComponent(STRAVA_CSEC)
-    +'&code='+encodeURIComponent(code)
-    +'&grant_type=authorization_code';
-  try{
-    var r = await fetch(PROXY+'?type=strava_token&body='+encodeURIComponent(body));
-    var d = await r.json();
-    if(d.access_token){
-      localStorage.setItem('s_tok', d.access_token);
-      localStorage.setItem('s_exp', Date.now()+(d.expires_in||21600)*1000);
-      localStorage.setItem('s_ref', d.refresh_token||'');
-      if(d.athlete) localStorage.setItem('s_athlete', JSON.stringify(d.athlete));
-      st.textContent = '✅ Strava conectado!'; st.style.color='var(--teal2)';
-      setTimeout(async function(){ closeModal('smodal'); await reload(); }, 800);
-    } else { st.textContent = '❌ '+(d.message||JSON.stringify(d)); st.style.color='var(--rust)'; }
-  } catch(e){ st.textContent = '❌ '+e.message; st.style.color='var(--rust)'; }
-}
+// submitStrava replaced by handleOAuthCallback()
 
 async function refreshStrava(){
   var ref = localStorage.getItem('s_ref'); if(!ref) return null;
