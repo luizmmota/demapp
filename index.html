@@ -214,6 +214,62 @@ body::before{
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
 
+/* ── MOBILE BOTTOM NAV ── */
+.mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--navy);border-top:1px solid var(--border);z-index:200;padding:0.4rem 0 env(safe-area-inset-bottom,0.4rem);}
+.mobile-nav-items{display:flex;justify-content:space-around;}
+.mni{display:flex;flex-direction:column;align-items:center;gap:0.15rem;padding:0.35rem 0.5rem;cursor:pointer;color:var(--muted);border:none;background:transparent;font-size:0.55rem;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.05em;min-width:48px;}
+.mni.active{color:var(--teal2);}
+.mni-icon{font-size:1.25rem;line-height:1;}
+
+@media (max-width: 768px) {
+  /* Hide desktop sidebar */
+  .sidebar { display: none !important; }
+  /* Mobile nav visible */
+  .mobile-nav { display: block; }
+  /* Main takes full width, adds bottom padding for nav */
+  .main { margin-left: 0 !important; padding-bottom: 70px; }
+  /* Topbar compact */
+  .topbar { padding: 0.65rem 1rem; flex-wrap: wrap; gap: 0.4rem; }
+  .topbar h1 { font-size: 0.95rem; }
+  .tbr { gap: 0.4rem; }
+  .tbr span { font-size: 0.62rem !important; }
+  .btn-ref { padding: 0.28rem 0.55rem; font-size: 0.65rem; }
+  /* Content padding */
+  .content { padding: 1rem; }
+  /* Grids → single column on small screens */
+  .g3, .g4 { grid-template-columns: 1fr 1fr !important; gap: 0.65rem; }
+  .whoop-grid { grid-template-columns: repeat(3,1fr) !important; gap: 0.5rem; }
+  .whoop-grid .mc-val { font-size: 1.3rem !important; }
+  /* Week grid → 4 cols to fit */
+  .week-grid { grid-template-columns: repeat(4,1fr) !important; gap: 0.3rem; }
+  .wd-date { font-size: 0.75rem !important; }
+  .wd-label { font-size: 0.5rem !important; }
+  /* Cards */
+  .card { padding: 1rem; }
+  .mc { padding: 0.75rem 0.85rem; }
+  .mc-val { font-size: 1.5rem !important; }
+  /* Popup full screen on mobile */
+  .popup-overlay { padding: 0; align-items: flex-end; }
+  .popup-card { border-radius: 16px 16px 0 0; max-height: 85vh; max-width: 100%; }
+  /* Chat full height */
+  .cwrap { height: calc(100vh - 120px); }
+  /* Dashboard charts shorter */
+  .cw { height: 150px !important; }
+  /* Activities filter wrap */
+  .filter-tabs { gap: 0.3rem; }
+  .ftab { font-size: 0.6rem; padding: 0.25rem 0.55rem; }
+  /* Rbanner column */
+  .rbanner { flex-direction: column; gap: 0.75rem; }
+  .rdays { font-size: 2rem; }
+}
+
+@media (max-width: 480px) {
+  .g3 { grid-template-columns: 1fr !important; }
+  .whoop-grid { grid-template-columns: repeat(3,1fr) !important; }
+  .week-grid { grid-template-columns: repeat(4,1fr) !important; }
+  .topbar h1 { font-size: 0.85rem; }
+}
+
 /* ── POPUP MODAL ── */
 .popup-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:8888;align-items:center;justify-content:center;padding:1rem;}
 .popup-overlay.open{display:flex;}
@@ -227,6 +283,10 @@ body::before{
 .popup-stat-val{font-family:var(--font-head);font-size:1.2rem;font-weight:600;color:var(--cream);}
 .zone-bar-full{display:flex;height:8px;border-radius:4px;overflow:hidden;margin:0.5rem 0;}
 .zone-label-row{display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:0.58rem;color:var(--muted);margin-bottom:0.85rem;}
+.goal-bar-bg{background:var(--navy2);border-radius:3px;height:5px;overflow:hidden;margin:0.3rem 0;}
+.goal-bar{height:5px;border-radius:3px;transition:width 0.5s;}
+.goal-achieved{color:var(--teal2);}
+.goal-warn{color:var(--gold);}
 
 /* ── WEEK GRID ── */
 .week-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:0.4rem;margin-bottom:1.1rem;}
@@ -337,8 +397,16 @@ body::before{
       <div class="ni" onclick="go('dashboard',this)"><span class="ic">📊</span>Dashboard</div>
       <div class="ni" onclick="go('plan',this)"><span class="ic">🗓️</span>Plano de Treino</div>
       <div class="ni" onclick="go('activities',this)"><span class="ic">🏃</span>Atividades</div>
-      <div class="ni" onclick="go('race',this)"><span class="ic">🏁</span>Minha Prova</div>
+      <div class="ni" onclick="go('race',this)"><span class="ic">🏁</span>Minhas Provas</div>
     </nav>
+    <div id="sidebar-race-widget" style="padding:0.75rem 1.25rem;border-top:1px solid var(--border);display:none">
+      <div style="font-family:var(--font-mono);font-size:0.58rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin-bottom:0.3rem">Próxima Prova</div>
+      <div id="sidebar-race-name" style="font-family:var(--font-head);font-size:0.82rem;font-weight:600;color:var(--cream);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+      <div style="display:flex;align-items:baseline;gap:0.3rem;margin-top:0.15rem">
+        <span id="sidebar-race-days" style="font-family:var(--font-head);font-size:1.4rem;font-weight:700;color:var(--teal2)"></span>
+        <span style="font-family:var(--font-mono);font-size:0.62rem;color:var(--muted)">dias</span>
+      </div>
+    </div>
     <div class="sfooter"><button class="btn-set" onclick="openSettings()">⚙ Configurações</button></div>
   </div>
 
@@ -359,7 +427,11 @@ body::before{
       <div id="page-briefing"   class="page active"><div id="bc"><div class="loading"><div class="spin"></div>Carregando…</div></div></div>
       <div id="page-chat"       class="page">
         <div class="cwrap">
-          <div class="cmsgs" id="cmsgs">
+          <div style="padding:0.5rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+        <span style="font-family:var(--font-mono);font-size:0.65rem;color:var(--muted)" id="chat-memory-info"></span>
+        <button onclick="clearChatMemory()" style="background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--muted);font-size:0.65rem;padding:0.18rem 0.5rem;cursor:pointer;font-family:var(--font-mono)">🗑 Limpar memória</button>
+      </div>
+      <div class="cmsgs" id="cmsgs">
             <div class="msg ai"><div class="av ai">D</div><div class="bub">E aí! Sou o Demapp — a versão IA do Dema. Tô por dentro dos seus treinos, Whoop e planilha. Manda ver, bixo.</div></div>
           </div>
           <div class="chips">
@@ -382,6 +454,17 @@ body::before{
       <div id="page-race"       class="page"><div id="rc"><div class="loading"><div class="spin"></div>Carregando…</div></div></div>
     </div>
   </div>
+  <!-- MOBILE BOTTOM NAV -->
+  <nav class="mobile-nav">
+    <div class="mobile-nav-items">
+      <button class="mni active" id="mni-briefing" onclick="go('briefing',this);mobileNav('briefing')"><span class="mni-icon">🌅</span>Resumo</button>
+      <button class="mni" id="mni-chat" onclick="go('chat',this);mobileNav('chat')"><span class="mni-icon">💬</span>Dema</button>
+      <button class="mni" id="mni-dashboard" onclick="go('dashboard',this);mobileNav('dashboard')"><span class="mni-icon">📊</span>Dash</button>
+      <button class="mni" id="mni-plan" onclick="go('plan',this);mobileNav('plan')"><span class="mni-icon">🗓️</span>Plano</button>
+      <button class="mni" id="mni-activities" onclick="go('activities',this);mobileNav('activities')"><span class="mni-icon">🏃</span>Atividades</button>
+      <button class="mni" id="mni-race" onclick="go('race',this);mobileNav('race')"><span class="mni-icon">🏁</span>Provas</button>
+    </div>
+  </nav>
 </div>
 
 <!-- POPUP MODAL -->
@@ -468,6 +551,9 @@ window.addEventListener('DOMContentLoaded', function(){
       }
     }, 500);
   }
+  // Restore Dema conversation memory
+  var savedChat = localStorage.getItem('demapp_chat_history');
+  if(savedChat){ try{ CH = JSON.parse(savedChat).slice(-20); }catch(e){} }
   reload();
   populateSettings();
 });
@@ -511,12 +597,36 @@ async function handleStravaCallback(code){
   } catch(e){ console.error('Strava callback erro:', e); alert('Erro: '+e.message); }
 }
 
+async function checkWeeklyReport(){
+  var today = new Date();
+  if(today.getDay() !== 1) return; // Only Monday
+  var lastReport = localStorage.getItem('demapp_last_report');
+  var lastDate = lastReport ? new Date(lastReport) : null;
+  if(lastDate && lastDate.toDateString() === today.toDateString()) return; // Already shown today
+  localStorage.setItem('demapp_last_report', today.toISOString());
+  // Generate weekly report
+  var weekStart = new Date(today); weekStart.setDate(today.getDate()-7);
+  var weekActs = D.acts.filter(function(a){ try{ return new Date(a.date)>=weekStart; }catch(e){ return false; } });
+  var weekTSS = weekActs.reduce(function(s,a){return s+(+a.tss||0);},0);
+  var weekKm = weekActs.reduce(function(s,a){return s+(+a.distance_km||0);},0);
+  var af = autoFitness();
+  var prompt = 'Gere um relatorio semanal resumido para o Luiz.\n'
+    +'Semana de '+weekStart.toLocaleDateString('pt-BR')+' a '+today.toLocaleDateString('pt-BR')+'\n'
+    +'TREINOS: '+weekActs.length+' sessoes | '+weekTSS+' TSS | '+weekKm.toFixed(0)+'km\n'
+    +'FORMA ATUAL: CTL '+(af?af.ctl:'?')+' | ATL '+(af?af.atl:'?')+' | TSB '+(af?af.tsb:'?')+'\n'
+    +'\nEscreva um relatorio semanal em 3 linhas curtas: conquistas, o que melhorar, e o foco para esta semana. Direto no estilo do Dema.';
+  var report = await ask(prompt);
+  // Show as notification in briefing
+  localStorage.setItem('demapp_weekly_report', JSON.stringify({text:report, date:today.toLocaleDateString('pt-BR')}));
+}
+
 async function reload(){
   gi('dot').style.background = 'var(--gold)';
   await Promise.allSettled([loadWhoop(), loadStrava(), loadSheets(), loadICal()]);
   gi('upd').textContent = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
   gi('dot').style.background = 'var(--teal2)';
-  renderWhoopTop(); renderStravaTop(); renderICalTop(); updateFitBadge();
+  checkWeeklyReport();
+  renderWhoopTop(); renderStravaTop(); renderICalTop(); updateFitBadge(); updateSidebarRace();
   // Show key status
   var ks = gi('key-status');
   if(ks){
@@ -684,7 +794,7 @@ async function loadStrava(){
       var tss = whoopMatch ? calcTSSFromWhoop(whoopMatch, durSec) : calcTSS(a, distKm, durSec);
       return {
         date: a.start_date ? a.start_date.split('T')[0] : '',
-        activity_type: normalizeStravaType(a.type||a.sport_type||'Other'),
+        activity_type: normalizeStravaType(a.type||a.sport_type||'Other', a.name||''),
         duration_minutes: durMin,
         duration_seconds: durSec,
         distance_km: distKm,
@@ -721,7 +831,10 @@ async function loadStrava(){
   } catch(e){ console.warn('Strava erro:',e); D.acts=[]; }
 }
 
-function normalizeStravaType(t){
+function normalizeStravaType(t, name){
+  // Zwift detection by name
+  if(name && /zwift/i.test(name) && t==='VirtualRide') return 'Ride'; // treat as ride
+  if(name && /zwift.*run|run.*zwift/i.test(name)) return 'Run';
   var m = {
     'Run':'Run','VirtualRun':'Run','TrailRun':'Run',
     'Ride':'Ride','VirtualRide':'Ride','MountainBikeRide':'Ride','GravelRide':'Ride','EBikeRide':'Ride',
@@ -861,9 +974,11 @@ function calcFitnessHistory(acts){
     var tss = dailyTSS[ds]||0;
     // TSB = yesterday's CTL - yesterday's ATL (before today's TSS is applied)
     var tsb = ctl - atl;
-    // Then update CTL and ATL with today's TSS
-    ctl = ctl + (tss - ctl) * (1/42);
-    atl = atl + (tss - atl) * (1/7);
+    // TrainingPeaks exact constants: 1-exp(-1/d)
+    var kCTL = 1 - Math.exp(-1/42);
+    var kATL = 1 - Math.exp(-1/7);
+    ctl = ctl + (tss - ctl) * kCTL;
+    atl = atl + (tss - atl) * kATL;
     history.push({
       date: ds,
       tss: tss,
@@ -914,6 +1029,20 @@ function checkOverreaching(){
   if(D.fitness.length >= 14){
     var ctlWeekAgo = D.fitness[D.fitness.length-8].ctl;
     if(ctlWeekAgo - last.ctl > 5) alerts.push({type:'info', msg:'CTL caiu '+(ctlWeekAgo-last.ctl).toFixed(1)+' pontos esta semana — risco de destreino'});
+  }
+
+  // Recovery score drop 3 days in a row
+  if(D.recoveries.length >= 3){
+    var rec3 = D.recoveries.slice(0,3).map(function(r){return r.score.recovery_score;});
+    if(rec3[0]<rec3[1]&&rec3[1]<rec3[2]) alerts.push({type:'warning', msg:'Recuperação caindo 3 dias seguidos ('+rec3[2]+'→'+rec3[1]+'→'+rec3[0]+'%) — considera reduzir volume'});
+  }
+
+  // Detect recovery week
+  if(D.fitness.length >= 8){
+    var prev8 = D.fitness[D.fitness.length-8];
+    if(prev8 && last.atl < prev8.atl*0.85 && last.ctl > prev8.atl*0.85){
+      alerts.push({type:'info', msg:'Semana de recuperação detectada — ATL caiu ✓'});
+    }
   }
 
   return alerts.length ? alerts : null;
@@ -1005,6 +1134,46 @@ async function writeRow(row){
 // ── HELPERS ───────────────────────────────────────────────────────────────────
 function closeModal(id){ gi(id).classList.remove('open'); }
 
+// ── WEATHER ──────────────────────────────────────────────────
+async function fetchWeather(){
+  try{
+    // Use Open-Meteo (free, no key needed)
+    // Bogotá default (user location)
+    var lat = 4.711, lon = -74.0721;
+    // Try geolocation
+    if(navigator.geolocation){
+      await new Promise(function(res){ navigator.geolocation.getCurrentPosition(function(p){ lat=p.coords.latitude; lon=p.coords.longitude; res(); }, res, {timeout:3000}); });
+    }
+    var url = 'https://api.open-meteo.com/v1/forecast?latitude='+lat+'&longitude='+lon
+      +'&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weathercode'
+      +'&forecast_days=2&timezone=auto';
+    var r = await fetch(url);
+    var d = await r.json();
+    if(!d.daily) return null;
+    return {
+      today:    { max:d.daily.temperature_2m_max[0], min:d.daily.temperature_2m_min[0], rain:d.daily.precipitation_sum[0], code:d.daily.weathercode[0] },
+      tomorrow: { max:d.daily.temperature_2m_max[1], min:d.daily.temperature_2m_min[1], rain:d.daily.precipitation_sum[1], code:d.daily.weathercode[1] }
+    };
+  }catch(e){ return null; }
+}
+
+function weatherEmoji(code){
+  if(code===0) return '☀️';
+  if(code<=2) return '🌤️';
+  if(code<=3) return '☁️';
+  if(code<=48) return '🌫️';
+  if(code<=57) return '🌧️';
+  if(code<=67) return '🌧️';
+  if(code<=77) return '❄️';
+  if(code<=82) return '🌦️';
+  return '⛈️';
+}
+
+function getWeeklyGoals(){
+  return JSON.parse(localStorage.getItem('demapp_goals')||'{"swim_km":10,"bike_km":150,"run_km":40,"strength_n":2}');
+}
+function saveWeeklyGoals(g){ localStorage.setItem('demapp_goals',JSON.stringify(g)); }
+
 function daysStale(){if(!D.tph.length)return 999;try{return Math.floor((new Date()-new Date(D.tph[0].date))/864e5);}catch(e){return 999;}}
 function staleBanner(){
   if(D.fitness&&D.fitness.length) return '';
@@ -1055,7 +1224,7 @@ function showPlannedWorkout(idx){
     +(wk.workout_type?'<div class="popup-stat"><div class="popup-stat-label">Esporte</div><div class="popup-stat-val">'+em(wk.workout_type)+' '+wk.workout_type+'</div></div>':'')
     +(wk.completed==='Yes'?'<div class="popup-stat"><div class="popup-stat-label">Status</div><div class="popup-stat-val" style="color:var(--teal2)">✓ Concluído</div></div>':'<div class="popup-stat"><div class="popup-stat-label">Status</div><div class="popup-stat-val" style="color:var(--muted)">Planejado</div></div>')
     +'</div>'
-    +(wk.description?'<div style="background:rgba(255,255,255,0.03);border-radius:8px;padding:0.85rem;font-size:0.82rem;color:var(--cream2);line-height:1.7">'+wk.description+'</div>':'');
+    +(wk.description?'<div style="background:rgba(255,255,255,0.03);border-radius:8px;padding:0.85rem;font-size:0.82rem;color:var(--cream2);line-height:1.75;white-space:pre-wrap">'+wk.description+'</div>':'');
   openPopup(wk.title, wk.date+' · '+wk.workout_type+(IC.ok?' · TrainingPeaks iCal':' · Planilha'), body);
 }
 
@@ -1118,7 +1287,44 @@ function getWeekDays(){
   return days;
 }
 
+function updateSidebarRace(){
+  var races = getRaces ? getRaces() : [];
+  var upcoming = races.filter(function(r){ return new Date(r.date) > new Date(); })
+    .sort(function(a,b){ return new Date(a.date)-new Date(b.date); });
+  var w = gi('sidebar-race-widget');
+  if(!w) return;
+  if(!upcoming.length){ w.style.display='none'; return; }
+  var next = upcoming[0];
+  var days = Math.ceil((new Date(next.date)-new Date())/864e5);
+  gi('sidebar-race-name').textContent = next.name;
+  gi('sidebar-race-days').textContent = days;
+  w.style.display = 'block';
+}
+
 function renderPage(){var a=document.querySelector('.page.active');if(!a)return;var id=a.id.replace('page-','');if(id==='briefing')renderBriefing();if(id==='dashboard')renderDashboard();if(id==='plan')renderPlan();if(id==='activities')renderActivities();if(id==='race')renderRace();}
+
+function clearWeeklyReport(){
+  localStorage.removeItem('demapp_weekly_report');
+  renderBriefing();
+}
+
+function openGoalsEditor(){
+  var g=getWeeklyGoals();
+  var html='<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1rem">'
+    +'<div class="popup-stat"><div class="popup-stat-label">🏊 Natação (km)</div><input type="number" id="g-swim" value="'+g.swim_km+'" step="0.5" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--cream);padding:0.4rem 0.6rem;font-family:var(--font-mono);font-size:0.9rem;text-align:center;margin-top:0.35rem"/></div>'
+    +'<div class="popup-stat"><div class="popup-stat-label">🚴 Pedal (km)</div><input type="number" id="g-bike" value="'+g.bike_km+'" step="5" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--cream);padding:0.4rem 0.6rem;font-family:var(--font-mono);font-size:0.9rem;text-align:center;margin-top:0.35rem"/></div>'
+    +'<div class="popup-stat"><div class="popup-stat-label">🏃 Corrida (km)</div><input type="number" id="g-run" value="'+g.run_km+'" step="1" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--cream);padding:0.4rem 0.6rem;font-family:var(--font-mono);font-size:0.9rem;text-align:center;margin-top:0.35rem"/></div>'
+    +'<div class="popup-stat"><div class="popup-stat-label">💪 Musculação (sessões)</div><input type="number" id="g-str" value="'+g.strength_n+'" step="1" min="0" max="7" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--cream);padding:0.4rem 0.6rem;font-family:var(--font-mono);font-size:0.9rem;text-align:center;margin-top:0.35rem"/></div>'
+    +'</div>'
+    +'<button onclick="saveGoalsFromPopup()" style="background:var(--teal);border:none;border-radius:6px;color:var(--cream);font-size:0.85rem;font-weight:600;padding:0.55rem 1.25rem;cursor:pointer;font-family:var(--font-head);width:100%">Salvar Metas</button>';
+  openPopup('Metas Semanais de Volume','Defina seus objetivos de volume por semana',html);
+}
+function saveGoalsFromPopup(){
+  var g={swim_km:+(gi('g-swim').value||10),bike_km:+(gi('g-bike').value||150),run_km:+(gi('g-run').value||40),strength_n:+(gi('g-str').value||2)};
+  saveWeeklyGoals(g);
+  closePopup();
+  renderBriefing();
+}
 
 function saveManualWhoop(){
   var rec = gi('wm-rec'), sl = gi('wm-sl'), str = gi('wm-str'), hrv = gi('wm-hrv'), rhr = gi('wm-rhr');
@@ -1268,6 +1474,34 @@ async function renderBriefing(){
 
   // ── Week grid with clickable activities and planned workouts ──
   var weekDays=getWeekDays();
+  // ── Weekly volume goals ──
+  var goals = getWeeklyGoals();
+  var weekSwim = weekActs.filter(function(a){return a.activity_type==='Swim';}).reduce(function(s,a){return s+(+a.distance_km||0);},0);
+  var weekBike = weekActs.filter(function(a){return a.activity_type==='Ride';}).reduce(function(s,a){return s+(+a.distance_km||0);},0);
+  var weekRun  = weekActs.filter(function(a){return a.activity_type==='Run';}).reduce(function(s,a){return s+(+a.distance_km||0);},0);
+  var weekStr  = weekActs.filter(function(a){return a.activity_type==='Strength';}).length;
+  function goalRow(icon,label,done,target,unit){
+    var pct=target>0?Math.min(done/target*100,100):0;
+    var col=pct>=100?'var(--teal2)':pct>=70?'var(--gold)':'var(--rust)';
+    return '<div style="margin-bottom:0.55rem">'
+      +'<div style="display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:0.65rem;margin-bottom:0.2rem">'
+        +'<span>'+icon+' '+label+'</span>'
+        +'<span style="color:'+col+'">'+done.toFixed(unit==='n'?0:1)+'/'+target+unit+'</span>'
+      +'</div>'
+      +'<div class="goal-bar-bg"><div class="goal-bar" style="width:'+pct+'%;background:'+col+'"></div></div>'
+    +'</div>';
+  }
+  var goalsHtml='<div class="card" style="margin-bottom:1.1rem">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem">'
+      +'<div class="card-title" style="margin:0">🎯 Metas da Semana</div>'
+      +'<button onclick="openGoalsEditor()" style="background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--muted);font-size:0.65rem;padding:0.18rem 0.5rem;cursor:pointer;font-family:var(--font-mono)">editar metas</button>'
+    +'</div>'
+    +goalRow('🏊','Natação',weekSwim,goals.swim_km,'km')
+    +goalRow('🚴','Pedal',weekBike,goals.bike_km,'km')
+    +goalRow('🏃','Corrida',weekRun,goals.run_km,'km')
+    +goalRow('💪','Musculação',weekStr,goals.strength_n,'n')
+    +'</div>';
+
   var weekHtml='<div class="card"><div class="card-title">📆 Esta Semana &nbsp;<span style="font-family:var(--font-mono);font-size:0.62rem;color:var(--muted)">'+weekActs.length+' treinos · '+weekTSS+' TSS</span></div>'
     +'<div class="week-grid">'
     +weekDays.map(function(day){
@@ -1293,7 +1527,15 @@ async function renderBriefing(){
     manualSection +
     '<p style="font-family:var(--font-mono);font-size:0.68rem;color:var(--muted);margin-bottom:0.85rem;text-transform:uppercase;letter-spacing:0.06em">'
     +new Date().toLocaleDateString('pt-BR',{weekday:'long',year:'numeric',month:'long',day:'numeric'})+'</p>'
-    +staleBanner()+stravaInfo+whoopBoxes
+    +(function(){
+      var rep=JSON.parse(localStorage.getItem('demapp_weekly_report')||'null');
+      if(!rep) return '';
+      return '<div style="background:linear-gradient(135deg,rgba(58,122,122,0.1),rgba(58,122,122,0.04));border:1px solid rgba(58,122,122,0.25);border-radius:10px;padding:0.85rem 1.1rem;margin-bottom:1.1rem">'
+        +'<div style="font-family:var(--font-mono);font-size:0.6rem;color:var(--teal2);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.4rem">📋 Relatório Semanal — '+rep.date+'</div>'
+        +'<div style="font-size:0.82rem;color:var(--cream2);line-height:1.7">'+mdHtml(rep.text)+'</div>'
+        +"<button onclick=\"clearWeeklyReport()\" style=\"margin-top:0.5rem;background:transparent;border:none;color:var(--muted);font-size:0.7rem;cursor:pointer;font-family:var(--font-mono)\">✕ fechar</button>"
+      +'</div>';
+    }())+staleBanner()+stravaInfo+whoopBoxes
     +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem"><div style="font-family:var(--font-mono);font-size:0.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em">Carga de Treino '+fitSource+'</div></div>'
     +(function(){
       // 7-day sparklines for CTL/ATL/TSB
@@ -1329,10 +1571,16 @@ async function renderBriefing(){
         +'</div>';
     }())
     +orHtml
-    +todayHtml+weekHtml
+    +todayHtml+goalsHtml+weekHtml
     +'<div class="aibox"><div class="ai-head"><span class="ai-badge">DEMAPP IA</span><span class="ai-sub">Análise do Dia</span></div><div class="ai-text" id="ai-brief"><div class="loading"><div class="spin"></div>Analisando seus dados…</div></div></div>';
 
   genBriefing(recScore,hrv,rhr,sleepH,sleepPerf,strain,ctl,atl,tsb,todayW);
+  // Fetch weather async
+  fetchWeather().then(function(w){
+    var el=gi('weather-widget'); if(!el||!w) return;
+    el.innerHTML = weatherEmoji(w.tomorrow.code)+' amanhã '+Math.round(w.tomorrow.max)+'°/'
+      +Math.round(w.tomorrow.min)+'°'+(w.tomorrow.rain>1?' 🌧️'+w.tomorrow.rain+'mm':'');
+  });
 }
 
 async function genBriefing(rec,hrv,rhr,sleepH,sleepPerf,strain,ctl,atl,tsb,todayW){
@@ -1390,10 +1638,39 @@ function renderDashboard(){
       }())
     +'</div>'
     +'<div class="g2">'
-      +'<div class="card"><div class="card-title">💚 Recuperação — 7 Dias</div><div class="cw"><canvas id="cr"></canvas></div></div>'
-      +'<div class="card"><div class="card-title">❤️ Tendência de HRV — 7 Dias</div><div class="cw"><canvas id="ch"></canvas></div>'
+      +'<div class="card">'
+        +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem">'
+          +'<div class="card-title" style="margin:0">💚 Recuperação</div>'
+          +'<div style="display:flex;gap:0.3rem">'
+            +'<span class="ctab active" id="rec-tab-7" onclick="switchRecTab(7)">7d</span>'
+            +'<span class="ctab" id="rec-tab-30" onclick="switchRecTab(30)">30d</span>'
+          +'</div>'
+        +'</div>'
+        +'<div class="cw"><canvas id="cr"></canvas></div>'
+      +'</div>'
+      +'<div class="card">'
+        +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem">'
+          +'<div class="card-title" style="margin:0">❤️ HRV</div>'
+          +'<div style="display:flex;gap:0.3rem">'
+            +'<span class="ctab active" id="hrv-tab-7" onclick="switchHRVTab(7)">7d</span>'
+            +'<span class="ctab" id="hrv-tab-30" onclick="switchHRVTab(30)">30d</span>'
+            +'<span class="ctab" id="hrv-tab-90" onclick="switchHRVTab(90)">90d</span>'
+          +'</div>'
+        +'</div>'
+        +'<div class="cw"><canvas id="ch"></canvas></div>'
+      +'</div>'
     +'</div>'
-    +'<div class="card"><div class="card-title">📈 CTL / ATL / TSB — Histórico de Carga</div><div class="cw" style="height:200px"><canvas id="cl"></canvas></div></div>'
+    +'<div class="card">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem">'
+        +'<div class="card-title" style="margin:0">📈 Histórico de Carga</div>'
+            +'<div style="display:flex;gap:0.3rem">'
+          +'<span class="ctab active" id="load-tab-load" data-tab="load" onclick="switchLoadTab(this.dataset.tab)">CTL/ATL/TSB</span>'
+          +'<span class="ctab" id="load-tab-run" data-tab="run" onclick="switchLoadTab(this.dataset.tab)">🏃 Ritmo</span>'
+          +'<span class="ctab" id="load-tab-ride" data-tab="ride" onclick="switchLoadTab(this.dataset.tab)">🚴 Watts</span>'
+        +'</div>'
+      +'</div>'
+      +'<div class="cw" style="height:200px"><canvas id="cl"></canvas></div>'
+    +'</div>'
     +'<div class="aibox"><div class="ai-head"><span class="ai-badge">DEMAPP IA</span><span class="ai-sub">Análise do Dashboard</span></div><div class="ai-text" id="ai-dash"><div class="loading"><div class="spin"></div>Analisando tendências…</div></div></div>';
 
   setTimeout(function(){
@@ -1406,6 +1683,35 @@ function renderDashboard(){
       };
       new Chart(gi('ch'),{type:'line',data:{labels:lbl7,datasets:[{data:hrv7,borderColor:'var(--teal2)',backgroundColor:'rgba(58,122,122,0.1)',tension:0.4,fill:true,pointBackgroundColor:'var(--teal2)',pointRadius:3}]},options:co});
     }
+    window._clChart = null;
+    window.switchLoadTab = function(tab){
+      ['load','run','ride'].forEach(function(t){ var el=gi('load-tab-'+t); if(el) el.classList.toggle('active',t===tab); });
+      if(window._clChart) window._clChart.destroy();
+      if(tab==='load'){
+        if(tph.length){
+          window._clChart=new Chart(gi('cl'),{type:'line',data:{labels:tpL,datasets:[
+            {label:'CTL',data:tph.map(function(r){return+r.ctl||0;}),borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,0.05)',tension:0.4,fill:true,pointRadius:1,borderWidth:2.5},
+            {label:'ATL',data:tph.map(function(r){return+r.atl||0;}),borderColor:'#ef4444',backgroundColor:'rgba(239,68,68,0.04)',tension:0.4,fill:true,pointRadius:1,borderWidth:2},
+            {label:'TSB',data:tph.map(function(r){return+r.tsb||0;}),borderColor:'#5abf8a',backgroundColor:'rgba(90,191,138,0.04)',tension:0.4,fill:true,pointRadius:1,borderWidth:1.5}
+          ]},options:Object.assign({},co,{plugins:{legend:{display:true,labels:{color:'#7a9ab5',font:{size:10},boxWidth:10}}}})});
+        }
+      } else if(tab==='run'){
+        var runs=D.acts.filter(function(a){return a.activity_type==='Run'&&a.distance_km>0;}).slice(-30).reverse();
+        var paces=runs.map(function(a){return a.duration_seconds&&a.distance_km?(a.duration_seconds/60/a.distance_km).toFixed(2):null;}).filter(Boolean);
+        var runLbls=runs.map(function(a){return new Date(a.date).toLocaleDateString('pt-BR',{month:'short',day:'numeric'});});
+        if(paces.length){
+          window._clChart=new Chart(gi('cl'),{type:'line',data:{labels:runLbls,datasets:[{label:'Ritmo (min/km)',data:paces,borderColor:'var(--teal2)',backgroundColor:'rgba(58,122,122,0.1)',tension:0.4,fill:true,pointRadius:3,pointBackgroundColor:'var(--teal2)'}]},options:Object.assign({},co,{plugins:{legend:{display:false}},scales:Object.assign({},co.scales,{y:Object.assign({},co.scales.y,{reverse:true})})})});
+        } else { gi('cl').parentElement.innerHTML='<p style="color:var(--muted);padding:1rem;font-size:0.82rem">Sem corridas suficientes para mostrar tendência.</p>'; }
+      } else if(tab==='ride'){
+        var rides=D.acts.filter(function(a){return a.activity_type==='Ride'&&a.avg_watts>0;}).slice(-30).reverse();
+        var watts=rides.map(function(a){return a.avg_watts;});
+        var rideLbls=rides.map(function(a){return new Date(a.date).toLocaleDateString('pt-BR',{month:'short',day:'numeric'});});
+        if(watts.length){
+          window._clChart=new Chart(gi('cl'),{type:'line',data:{labels:rideLbls,datasets:[{label:'Watts médio',data:watts,borderColor:'#ef4444',backgroundColor:'rgba(239,68,68,0.08)',tension:0.4,fill:true,pointRadius:3,pointBackgroundColor:'#ef4444'}]},options:Object.assign({},co,{plugins:{legend:{display:false}}})});
+        } else { gi('cl').parentElement.innerHTML='<p style="color:var(--muted);padding:1rem;font-size:0.82rem">Sem dados de potência nas rides.</p>'; }
+      }
+    };
+    switchLoadTab('load');
     if(tph.length){
       new Chart(gi('cl'),{type:'line',data:{labels:tpL,datasets:[
         {label:'CTL',data:tph.map(function(r){return+r.ctl||0;}),borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,0.05)',tension:0.4,fill:true,pointRadius:2,borderWidth:2.5},
@@ -1414,6 +1720,35 @@ function renderDashboard(){
       ]},options:Object.assign({},co,{plugins:{legend:{display:true,labels:{color:'#7a9ab5',font:{size:10},boxWidth:10}}}})});
     }
   },100);
+  // Store for tab switching
+  window._recData = {rsc7:rsc7, lbl7:lbl7, recov7:recov7, coBar:coBar};
+  window._hrvData = {hrv7:hrv7, lbl7:lbl7, co:co};
+  window._crChart = null; window._chChart = null;
+
+  function buildRecChart(n){
+    var recs = D.recoveries.slice(0,n).reverse();
+    var vals = recs.map(function(r){return r.score.recovery_score||0;});
+    var lbls = recs.map(function(r){var d=r._cycleStart||r._date;return d?new Date(d).toLocaleDateString('pt-BR',{weekday:'short',day:'numeric'}):'?';});
+    if(window._crChart) window._crChart.destroy();
+    window._crChart = new Chart(gi('cr'),{type:'bar',data:{labels:lbls,datasets:[{data:vals,backgroundColor:vals.map(function(s){return s>=67?'rgba(74,154,154,0.75)':s>=34?'rgba(200,150,42,0.75)':'rgba(196,90,42,0.75)';}),borderRadius:4}]},options:coBar});
+    gi('cr').onclick = function(evt){var pts=window._crChart.getElementsAtEventForMode(evt,'nearest',{intersect:true},false);if(pts.length){var idx=pts[0].index;showRecoveryDay(D.recoveries.length-1-idx);}};
+  }
+  function buildHRVChart(n){
+    var recs = D.recoveries.slice(0,n).reverse();
+    var vals = recs.map(function(r){return Math.round(r.score.hrv_rmssd_milli||0);});
+    var lbls = recs.map(function(r){var d=r._cycleStart||r._date;return d?new Date(d).toLocaleDateString('pt-BR',{weekday:'short',day:'numeric'}):'?';});
+    if(window._chChart) window._chChart.destroy();
+    window._chChart = new Chart(gi('ch'),{type:'line',data:{labels:lbls,datasets:[{data:vals,borderColor:'var(--teal2)',backgroundColor:'rgba(58,122,122,0.1)',tension:0.4,fill:true,pointBackgroundColor:'var(--teal2)',pointRadius:2}]},options:co});
+  }
+  window.switchRecTab = function(n){
+    ['7','30'].forEach(function(v){ var el=gi('rec-tab-'+v); if(el) el.classList.toggle('active',v==n); });
+    buildRecChart(n);
+  };
+  window.switchHRVTab = function(n){
+    ['7','30','90'].forEach(function(v){ var el=gi('hrv-tab-'+v); if(el) el.classList.toggle('active',v==n); });
+    buildHRVChart(n);
+  };
+  if(rsc7.length){ buildRecChart(7); buildHRVChart(7); }
   genDashboard(r0,h0,rsc7,hrv7);
 }
 
@@ -1433,6 +1768,9 @@ function renderPlan(){
   var upcoming=pl.filter(function(x){try{return new Date(x.date)>=today||new Date(x.date).toDateString()===today.toDateString();}catch(e){return false;}}).slice(0,28);
   if(!upcoming.length){el.innerHTML='<div class="card"><p style="color:var(--muted);font-size:0.85rem">Nenhum treino encontrado. Adicione a URL iCal do TrainingPeaks nas Configurações.</p></div>';return;}
   var done=upcoming.filter(function(x){return x.completed==='Yes';}).length;
+  // Calculate adherence: planned past workouts vs executed
+  var pastPlanned=upcoming.filter(function(x){try{return new Date(x.date)<new Date()&&x.completed!=='Yes';}catch(e){return false;}});
+  var adherence=upcoming.length>0?Math.round((done/(done+pastPlanned.length))*100):null;
   var aH=IC.ok?'<div class="ab ag">✅ Ao vivo do TrainingPeaks — '+IC.n+' treinos</div>':CFG.ical?'<div class="ab ar">⚠️ Falha ao carregar iCal</div>':'<div class="ab ay">ℹ️ Adicione a URL iCal do TrainingPeaks nas Configurações.</div>';
   var sP=IC.ok?'<span class="spill spi">iCal ao vivo</span>':'<span class="spill sps">planilha</span>';
   var items=upcoming.map(function(wk){
@@ -1441,7 +1779,10 @@ function renderPlan(){
     return'<div class="wi wi-'+(wk.workout_type||'Other')+'" onclick="showPlannedWorkout('+pidx2+')" style="cursor:pointer;'+(isPast?'opacity:0.4;':'')+(isT?'background:rgba(58,122,122,0.08);border-left-color:var(--teal2);':'')+'"><div class="we">'+em(wk.workout_type)+'</div><div class="winfo"><div class="wt">'+(isT?'⭐ HOJE — ':'')+wk.title+'</div><div class="wm">'+d.toLocaleDateString('pt-BR',{weekday:'short',month:'short',day:'numeric'})+(+wk.duration_minutes>0?' · '+wk.duration_minutes+'min':'')+(wk.intensity_zone?' · '+wk.intensity_zone:'')+(wk.description?' · <em>'+wk.description.slice(0,70)+'</em>':'')+'</div></div>'+(wk.completed==='Yes'?'<div class="done-check">✓</div>':'<div style="color:var(--muted);font-size:0.75rem">›</div>')+'</div>';
   }).join('');
   el.innerHTML=aH
-    +'<div style="font-family:var(--font-mono);font-size:0.68rem;color:var(--muted);margin-bottom:0.85rem">'+upcoming.length+' próximos &nbsp;·&nbsp; '+done+' concluídos &nbsp;'+sP+'</div>'
+    +'<div style="display:flex;align-items:center;gap:1rem;margin-bottom:0.85rem;flex-wrap:wrap">'
+    +'<span style="font-family:var(--font-mono);font-size:0.68rem;color:var(--muted)">'+upcoming.length+' próximos &nbsp;·&nbsp; '+done+' concluídos &nbsp;'+sP+'</span>'
+    +(adherence!==null?'<span style="font-family:var(--font-mono);font-size:0.68rem;background:rgba(58,122,122,0.1);border:1px solid rgba(58,122,122,0.2);border-radius:4px;padding:0.1rem 0.45rem;color:'+(adherence>=80?'var(--teal2)':adherence>=60?'var(--gold)':'var(--rust)')+'">'+adherence+'% adesão ao plano</span>':'')
+    +'</div>'
     +'<div class="card"><div class="wlist">'+items+'</div></div>';
 }
 
@@ -1460,8 +1801,13 @@ function renderActivities(){
     return;
   }
   // Apply period filter
+  var filterCutoff = ACT_FILTER===0 ? null : new Date();
+  if(filterCutoff) filterCutoff.setDate(filterCutoff.getDate() - ACT_FILTER);
   var filtered = ACT_FILTER===0 ? D.acts : D.acts.filter(function(a){
-    try{ return (Date.now()-new Date(a.date).getTime()) <= ACT_FILTER*864e5; }catch(e){return false;}
+    try{
+      var d = new Date(a.date); d.setHours(0,0,0,0);
+      return d >= filterCutoff;
+    }catch(e){return false;}
   });
   var filterHtml='<div class="filter-tabs">'
     +[{l:'7 dias',v:7},{l:'30 dias',v:30},{l:'60 dias',v:60},{l:'90 dias',v:90},{l:'Tudo',v:0}].map(function(f){
@@ -1478,8 +1824,8 @@ function renderActivities(){
   var totalKudos=filtered.reduce(function(s,a){return s+(+a.kudos||0);},0);
 
   // Monthly stats (last 30 days)
-  var monthAgo=new Date(); monthAgo.setDate(monthAgo.getDate()-30);
-  var monthActs=filtered.filter(function(a){try{return new Date(a.date)>=monthAgo;}catch(e){return false;}});
+  // Period stats = same as filtered
+  var monthActs=filtered;
   var monthTSS=monthActs.reduce(function(s,a){return s+(+a.tss||0);},0);
   var monthKm=monthActs.reduce(function(s,a){return s+(+a.distance_km||0);},0);
   var monthMin=monthActs.reduce(function(s,a){return s+(+a.duration_minutes||0);},0);
@@ -1612,32 +1958,105 @@ async function saveActTSS(idx){
 }
 
 // ── RACE PEAKING ──────────────────────────────────────────────────────────────
+function getRaces(){ return JSON.parse(localStorage.getItem('demapp_races')||'[]'); }
+function saveRaces(races){ localStorage.setItem('demapp_races',JSON.stringify(races)); }
+
 function renderRace(){
   var el=gi('rc');
-  var s=JSON.parse(localStorage.getItem('demapp_race')||'{}');
-  var rD=s.date||'', rN=s.name||'';
-  var days=rD?Math.ceil((new Date(rD)-new Date())/864e5):null;
-  var pl=getPlanned(),n=new Date(),w7=new Date(); w7.setDate(w7.getDate()+7);
-  var up7=pl.filter(function(x){try{var d=new Date(x.date);return d>=n&&d<=w7;}catch(e){return false;}});
-  var raceHtml='';
-  if(days!==null){
-    var phase=days<=14?'🏁 Hora do tapering!':days<=28?'🔥 Fase final de construção':days<=56?'💪 Fase de construção':'🌱 Base building';
-    raceHtml='<div class="rbanner"><div><div style="font-family:var(--font-mono);font-size:0.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em">Dias para a prova</div><div class="rdays">'+days+'</div><div style="font-family:var(--font-mono);font-size:0.62rem;color:var(--muted)">dias</div></div><div style="text-align:right"><div style="font-family:var(--font-head);font-size:1.1rem;font-weight:600;letter-spacing:0.04em;color:var(--cream)">'+rN+'</div><div style="color:var(--muted);font-size:0.78rem;margin-top:0.2rem">'+new Date(rD).toLocaleDateString('pt-BR',{weekday:'long',year:'numeric',month:'long',day:'numeric'})+'</div><div style="margin-top:0.5rem;font-family:var(--font-mono);font-size:0.7rem;color:var(--teal2)">'+phase+'</div></div></div>'
-      +'<div class="aibox"><div class="ai-head"><span class="ai-badge">DEMAPP IA</span><span class="ai-sub">Análise da Prova</span></div><div class="ai-text" id="ai-race"><div class="loading"><div class="spin"></div>Analisando…</div></div></div>';
-  } else {
-    raceHtml='<div class="card"><p style="color:var(--muted);font-size:0.85rem">Coloque a data da sua prova acima para receber orientações de tapering.</p></div>';
-  }
-  el.innerHTML='<div class="card"><div class="card-title">🏁 Minha Prova A</div><div class="rrow"><input type="text" id="r-n" placeholder="Nome da prova ex: Ironman Mallorca" value="'+rN+'" style="flex:1"/><input type="date" id="r-d" value="'+rD+'"/><button class="bsm" onclick="saveRace()">Salvar</button></div></div>'+raceHtml;
-  if(days!==null) genRace(rN,rD,days,up7);
+  var races=getRaces();
+  var pl=getPlanned(),now=new Date(),w7=new Date(); w7.setDate(w7.getDate()+7);
+  var up7=pl.filter(function(x){try{var d=new Date(x.date);return d>=now&&d<=w7;}catch(e){return false;}});
+  var mainRace=races.find(function(r){return r.priority==='A';})||races[0];
+  var days=mainRace&&mainRace.date?Math.ceil((new Date(mainRace.date)-now)/864e5):null;
+
+  // ── Add/Edit form ──
+  var addForm='<div class="card" style="margin-bottom:1.1rem">'
+    +'<div class="card-title">➕ Adicionar Prova</div>'
+    +'<div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:0.65rem;margin-bottom:0.65rem">'
+      +'<div><div style="font-family:var(--font-mono);font-size:0.6rem;color:var(--muted);margin-bottom:0.25rem;text-transform:uppercase">Nome da Prova</div>'
+        +'<input type="text" id="r-name" placeholder="ex: Ironman Mallorca" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--cream);padding:0.5rem 0.65rem;font-size:0.82rem"/></div>'
+      +'<div><div style="font-family:var(--font-mono);font-size:0.6rem;color:var(--muted);margin-bottom:0.25rem;text-transform:uppercase">Data</div>'
+        +'<input type="date" id="r-date" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--cream);padding:0.5rem 0.65rem;font-size:0.82rem"/></div>'
+      +'<div><div style="font-family:var(--font-mono);font-size:0.6rem;color:var(--muted);margin-bottom:0.25rem;text-transform:uppercase">Prioridade</div>'
+        +'<select id="r-priority" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--cream);padding:0.5rem 0.65rem;font-size:0.82rem">'
+          +'<option value="A">🏆 Prova A (Principal)</option>'
+          +'<option value="B">🥈 Prova B (Secundária)</option>'
+          +'<option value="C">🏃 Prova C (Treino)</option>'
+        +'</select></div>'
+    +'</div>'
+    +'<div style="margin-bottom:0.65rem"><div style="font-family:var(--font-mono);font-size:0.6rem;color:var(--muted);margin-bottom:0.25rem;text-transform:uppercase">Objetivo na Prova</div>'
+      +'<input type="text" id="r-goal" placeholder="ex: Sub 10h, pódio de idade, completar bem" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--cream);padding:0.5rem 0.65rem;font-size:0.82rem"/></div>'
+    +'<div style="margin-bottom:0.85rem"><div style="font-family:var(--font-mono);font-size:0.6rem;color:var(--muted);margin-bottom:0.25rem;text-transform:uppercase">Descrição / Notas</div>'
+      +'<textarea id="r-desc" placeholder="Detalhes sobre o percurso, estratégia, etc." rows="2" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--cream);padding:0.5rem 0.65rem;font-size:0.82rem;font-family:var(--font-body);resize:vertical"></textarea></div>'
+    +'<button onclick="addRace()" style="background:var(--teal);border:none;border-radius:6px;color:var(--cream);font-size:0.82rem;font-weight:600;padding:0.55rem 1.25rem;cursor:pointer;font-family:var(--font-head)">Salvar Prova</button>'
+    +'</div>';
+
+  // ── Race list ──
+  var raceList=races.length?races.sort(function(a,b){return new Date(a.date)-new Date(b.date);}).map(function(r,i){
+    var d=new Date(r.date); var daysTo=Math.ceil((d-now)/864e5);
+    var gone=daysTo<0;
+    var phase=daysTo<=14?'🏁 Tapering':daysTo<=28?'🔥 Fase final':daysTo<=56?'💪 Construção':'🌱 Base';
+    var priColor=r.priority==='A'?'var(--gold)':r.priority==='B'?'var(--teal2)':'var(--muted)';
+    var priLabel=r.priority==='A'?'PROVA A':r.priority==='B'?'PROVA B':'PROVA C';
+    return '<div style="background:var(--navy2);border:1px solid var(--border);border-left:3px solid '+priColor+';border-radius:10px;padding:1rem 1.1rem;margin-bottom:0.65rem'+(gone?';opacity:0.5':'')+'">'
+      +'<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem">'
+        +'<div style="flex:1">'
+          +'<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.25rem">'
+            +'<span style="font-family:var(--font-mono);font-size:0.58rem;background:rgba(255,255,255,0.05);border:1px solid '+priColor+';color:'+priColor+';padding:0.1rem 0.45rem;border-radius:3px">'+priLabel+'</span>'
+            +(gone?'<span style="font-family:var(--font-mono);font-size:0.58rem;color:var(--muted)">concluída</span>':phase?'<span style="font-family:var(--font-mono);font-size:0.58rem;color:var(--muted)">'+phase+'</span>':'')
+          +'</div>'
+          +'<div style="font-family:var(--font-head);font-size:1rem;font-weight:600;color:var(--cream);letter-spacing:0.03em">'+r.name+'</div>'
+          +'<div style="font-family:var(--font-mono);font-size:0.65rem;color:var(--muted);margin-top:0.2rem">'+d.toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long',year:'numeric'})+'</div>'
+          +(r.goal?'<div style="font-size:0.78rem;color:var(--teal2);margin-top:0.3rem">🎯 '+r.goal+'</div>':'')
+          +(r.desc?'<div style="font-size:0.75rem;color:var(--muted);margin-top:0.2rem">'+r.desc+'</div>':'')
+        +'</div>'
+        +'<div style="text-align:right;flex-shrink:0">'
+          +(gone?'':('<div style="font-family:var(--font-head);font-size:2rem;font-weight:700;color:'+priColor+';line-height:1">'+daysTo+'</div>'
+            +'<div style="font-family:var(--font-mono);font-size:0.6rem;color:var(--muted)">dias</div>'))
+          +'<button onclick="deleteRace('+i+')" style="display:block;margin-top:0.5rem;background:transparent;border:1px solid rgba(196,90,42,0.3);border-radius:4px;color:var(--rust);font-size:0.65rem;padding:0.2rem 0.45rem;cursor:pointer">remover</button>'
+        +'</div>'
+      +'</div>'
+    +'</div>';
+  }).join('') : '<div class="card"><p style="color:var(--muted);font-size:0.85rem">Nenhuma prova cadastrada. Adicione sua prova A acima.</p></div>';
+
+  // ── AI analysis for main race ──
+  var aiHtml=mainRace&&days&&days>0?(
+    '<div class="aibox"><div class="ai-head"><span class="ai-badge">DEMAPP IA</span><span class="ai-sub">Análise — '+mainRace.name+'</span></div>'
+    +'<div class="ai-text" id="ai-race"><div class="loading"><div class="spin"></div>Analisando…</div></div></div>'
+  ):'';
+
+  el.innerHTML=addForm
+    +'<div class="card-title" style="margin-bottom:0.75rem">📋 Minhas Provas</div>'
+    +raceList
+    +aiHtml;
+
+  if(mainRace&&days&&days>0) genRace(mainRace.name,mainRace.date,days,up7,mainRace.goal,mainRace.priority,races);
 }
 
-function saveRace(){ localStorage.setItem('demapp_race',JSON.stringify({date:gi('r-d').value,name:gi('r-n').value})); renderRace(); }
+function addRace(){
+  var name=gi('r-name').value.trim(), date=gi('r-date').value, priority=gi('r-priority').value;
+  var goal=gi('r-goal').value.trim(), desc=gi('r-desc').value.trim();
+  if(!name||!date){alert('Nome e data são obrigatórios.');return;}
+  var races=getRaces();
+  races.push({name:name,date:date,priority:priority,goal:goal,desc:desc});
+  saveRaces(races);
+  gi('r-name').value=''; gi('r-date').value=''; gi('r-goal').value=''; gi('r-desc').value='';
+  renderRace();
+}
 
-async function genRace(name,date,days,up7){
+function deleteRace(idx){
+  if(!confirm('Remover esta prova?'))return;
+  var races=getRaces(); races.splice(idx,1); saveRaces(races); renderRace();
+}
+
+function saveRace(){ renderRace(); } // legacy compat
+
+async function genRace(name,date,days,up7,goal,priority,allRaces){
   var tp=D.tph[0]||{}, rec=latestRecovery()||{};
   var acts=D.acts.slice(0,7).map(function(a){return a.date+' '+a.activity_type+' '+(a.duration_minutes||0)+'min TSS:'+(a.tss||0);}).join('\n');
   var upS=up7.map(function(wk){return wk.date+' '+wk.workout_type+' "'+wk.title+'" '+(wk.duration_minutes||0)+'min';}).join('\n')||'Sem dados';
-  var prompt='Analise de preparacao para prova do Luiz.\nPROVA: '+name+' | Data: '+date+' | Dias ate a prova: '+days+'\nFORMA: CTL '+(tp.ctl||'?')+' | ATL '+(tp.atl||'?')+' | TSB '+(tp.tsb||'?')+'\nWHOOP: Recuperacao '+(rec.recovery_score||'N/A')+'/100 | HRV '+Math.round(rec.hrv_rmssd_milli||0)+'ms\nTREINOS RECENTES:\n'+acts+'\nPROXIMOS 7 DIAS:\n'+upS+'\n\nDiga: (1) avaliacao da forma - ta no caminho?, (2) timing ideal do tapering e TSB alvo, (3) 2-3 treinos chave pra priorizar, (4) um risco a monitorar. Numeros e datas reais. Maximo 220 palavras.';
+  var otherRaces=(allRaces||[]).filter(function(r){return r.name!==name;}).map(function(r){return r.name+' ('+r.priority+') em '+r.date;}).join(', ')||'nenhuma';
+  var prompt='Analise de preparacao para prova do Luiz.\nPROVA PRINCIPAL: '+name+' ('+( priority||'A')+') | Data: '+date+' | Dias: '+days+(goal?'\nOBJETIVO: '+goal:'')+'\nOUTRAS PROVAS: '+otherRaces+'\nFORMA: CTL '+(tp.ctl||'?')+' | ATL '+(tp.atl||'?')+' | TSB '+(tp.tsb||'?')+'\nWHOOP: Recuperacao '+(rec.recovery_score||'N/A')+'/100 | HRV '+Math.round(rec.hrv_rmssd_milli||0)+'ms\nTREINOS RECENTES:\n'+acts+'\nPROXIMOS 7 DIAS:\n'+upS+'\n\nDiga: (1) avaliacao da forma - ta no caminho pro objetivo?, (2) timing ideal do tapering e TSB alvo, (3) 2-3 treinos chave pra priorizar, (4) um risco a monitorar. Numeros e datas reais. Maximo 220 palavras.';
   var t=await ask(prompt);
   var el=gi('ai-race');
   if(el) el.innerHTML=mdHtml(t);
@@ -1685,6 +2104,18 @@ async function saveFit(){
 }
 
 // ── CHAT ──────────────────────────────────────────────────────────────────────
+function clearChatMemory(){
+  if(!confirm('Limpar histórico da conversa com Dema?')) return;
+  CH = [];
+  localStorage.removeItem('demapp_chat_history');
+  gi('cmsgs').innerHTML = '<div class="msg ai"><div class="av ai">D</div><div class="bub">Memória limpa! Sou o Demapp — a versão IA do Dema. O que manda, bixo?</div></div>';
+  updateChatMemoryInfo();
+}
+function updateChatMemoryInfo(){
+  var el=gi('chat-memory-info'); if(!el) return;
+  el.textContent = CH.length ? CH.length/2+' mensagens na memória' : 'Sem memória ainda';
+}
+
 async function sendChat(){
   var inp=gi('cin'),msg=inp.value.trim();if(!msg)return;
   inp.value='';addMsg('user',msg);gi('sbtn').disabled=true;
@@ -1693,7 +2124,9 @@ async function sendChat(){
   var rep=await askChat(CH);
   th.querySelector('.bub').innerHTML=mdHtml(rep);
   CH.push({role:'assistant',content:rep});
-  gi('sbtn').disabled=false;gi('cmsgs').scrollTop=1e9;
+  // Persist last 20 messages
+  try{ localStorage.setItem('demapp_chat_history', JSON.stringify(CH.slice(-20))); }catch(e){}
+  gi('sbtn').disabled=false;gi('cmsgs').scrollTop=1e9;updateChatMemoryInfo();
 }
 function useChip(el){gi('cin').value=el.textContent;sendChat();}
 function addMsg(role,html){
@@ -1703,9 +2136,11 @@ function addMsg(role,html){
   w.appendChild(d);w.scrollTop=1e9;return d;
 }
 function buildCtx(){
-  var rec=latestRecovery()||{},tp=autoFitness()||D.tph[0]||{},race=JSON.parse(localStorage.getItem('demapp_race')||'{}');
+  var rec=latestRecovery()||{},tp=autoFitness()||D.tph[0]||{};
+  var races=getRaces?getRaces():[];
+  var mainRace=races.find(function(r){return r.priority==='A';})||races[0]||null;
   var pl=getPlanned(),up5=pl.filter(function(x){try{return new Date(x.date)>=new Date();}catch(e){return false;}}).slice(0,5);
-  return'Dados atuais do Luiz:\nWHOOP: Recuperacao '+(rec.recovery_score||'N/A')+'/100 | HRV '+Math.round(rec.hrv_rmssd_milli||0)+'ms | FC '+Math.round(rec.resting_heart_rate||0)+'bpm\nCARGA: CTL '+(tp.ctl||'?')+' | ATL '+(tp.atl||'?')+' | TSB '+(tp.tsb||'?')+'\nULTIMOS (Strava): '+D.acts.slice(0,5).map(function(a){return a.date+' '+a.activity_type+' '+(a.duration_minutes||0)+'min TSS:'+(a.tss||0);}).join(', ')+'\nPROXIMOS: '+up5.map(function(wk){return wk.date+' '+wk.workout_type+' "'+wk.title+'" '+(wk.duration_minutes||0)+'min';}).join(' | ')+(race.date?'\nPROVA: '+race.name+' em '+race.date+' ('+Math.ceil((new Date(race.date)-new Date())/864e5)+' dias)':'');
+  return'Dados atuais do Luiz:\nWHOOP: Recuperacao '+(rec.recovery_score||'N/A')+'/100 | HRV '+Math.round(rec.hrv_rmssd_milli||0)+'ms | FC '+Math.round(rec.resting_heart_rate||0)+'bpm\nCARGA: CTL '+(tp.ctl||'?')+' | ATL '+(tp.atl||'?')+' | TSB '+(tp.tsb||'?')+'\nULTIMOS (Strava): '+D.acts.slice(0,5).map(function(a){return a.date+' '+a.activity_type+' '+(a.duration_minutes||0)+'min TSS:'+(a.tss||0);}).join(', ')+'\nPROXIMOS: '+up5.map(function(wk){return wk.date+' '+wk.workout_type+' "'+wk.title+'" '+(wk.duration_minutes||0)+'min';}).join(' | ')+(mainRace?'\nPROVA A: '+mainRace.name+' em '+mainRace.date+' ('+Math.ceil((new Date(mainRace.date)-new Date())/864e5)+' dias)'+(mainRace.goal?' | Objetivo: '+mainRace.goal:''):'')+(races.length>1?'\nOUTRAS PROVAS: '+races.filter(function(r){return r!==mainRace;}).map(function(r){return r.name+' ('+r.priority+')';}).join(', '):'');
 }
 
 // ── CLAUDE ────────────────────────────────────────────────────────────────────
@@ -1789,7 +2224,12 @@ function fullReset(){
 }
 
 // ── NAV ───────────────────────────────────────────────────────────────────────
-var PT={briefing:'Resumo do Dia',chat:'Falar com Demapp',dashboard:'Dashboard',plan:'Plano de Treino',activities:'Atividades',race:'Minha Prova'};
+function mobileNav(id){
+  document.querySelectorAll('.mni').forEach(function(n){ n.classList.remove('active'); });
+  var el=document.getElementById('mni-'+id); if(el) el.classList.add('active');
+}
+
+var PT={briefing:'Resumo do Dia',chat:'Falar com Demapp',dashboard:'Dashboard',plan:'Plano de Treino',activities:'Atividades',race:'Minhas Provas'};
 function go(id,el){
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
   document.querySelectorAll('.ni').forEach(function(n){n.classList.remove('active');});
