@@ -1826,28 +1826,11 @@ var blob = new Blob([JSON.stringify(manifest)], {type:'application/json'});
 var murl = URL.createObjectURL(blob);
 document.getElementById('pwa-manifest').href = murl;
 
-// ── SERVICE WORKER ──
+// ── SERVICE WORKER (requires sw.js in repo root) ──
 if('serviceWorker' in navigator){
-  var swCode = `
-const CACHE = 'demapp-v1';
-const ASSETS = ['./', './index.html', './icone demapp.jpg'];
-self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS).catch(()=>{})));
-  self.skipWaiting();
-});
-self.addEventListener('activate', e => {
-  e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))));
-  self.clients.claim();
-});
-self.addEventListener('fetch', e => {
-  if(e.request.url.includes('api.anthropic.com')||e.request.url.includes('strava.com')||e.request.url.includes('whoop.com')) return;
-  e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)));
-});`;
-  var swBlob = new Blob([swCode], {type:'application/javascript'});
-  var swUrl  = URL.createObjectURL(swBlob);
-  navigator.serviceWorker.register(swUrl).then(function(reg){
-    console.log('Demapp PWA registrado');
-  }).catch(function(e){ console.log('SW erro:', e.message); });
+  navigator.serviceWorker.register('./sw.js')
+    .then(function(){ console.log('Demapp PWA OK'); })
+    .catch(function(e){ console.log('SW erro:', e.message); });
 }
 
 // ── Install prompt ──
